@@ -119,7 +119,7 @@ impl FrameStack {
         f.f_labels[&var].clone()
     }
 
-    pub fn lookup_d(&mut self, x: LanguageToken, y: LanguageToken) -> bool {
+    pub fn lookup_d(&self, x: LanguageToken, y: LanguageToken) -> bool {
         self.list.iter().rev().any(|fr| {
             fr.d.contains(&(min(x.clone(), y.clone()), max(x.clone(), y.clone())))
         })
@@ -136,8 +136,8 @@ impl FrameStack {
         f.e_labels[&stmt].clone()
     }
 
-    pub fn make_assertion(&mut self, stat: Statement) -> Assertion {
-        let _frame = self.list.last_mut().unwrap();
+    pub fn make_assertion(&self, stat: Statement) -> Assertion {
+        //let _frame = self.list.last_mut().unwrap();
 
         let e_hyps: Vec<Statement> = self.list.iter().flat_map(|fr| fr.e.clone()).collect();
 

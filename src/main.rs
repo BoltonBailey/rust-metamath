@@ -171,9 +171,11 @@ impl MM {
         vars
     }
 
-    fn decompress_proof(&mut self, stat: Statement, proof: Proof) -> Proof {
-        //I should change the type system to differentiate betweene the different types of proofs
-        // println!("Statement {:?}", stat);
+    fn decompress_and_verify(&self, stat: Statement, proof: Proof) {
+        todo!()
+    }
+
+    fn get_labels(&self, stat: Statement, ep: usize) -> Vec<Label> {
 
         let Assertion {
             dvs: _dm,
@@ -191,23 +193,12 @@ impl MM {
 
         // println!("mand_hyps {:?}", mand_hyps);
         // println!("hyps {:?}", hyps);
-        let mut labels: Vec<Label> = mand_hyps.chain(hyps).collect(); // contains both the mandatory hypotheses and the ones in the proof
-                                                                      // println!("Labels {:?}", labels);
+        let labels: Vec<Label> = mand_hyps.chain(hyps).collect(); // contains both the mandatory hypotheses and the e println!("Labels {:?}", labels);
 
-        let hyp_end = labels.len(); //when the mandatory hypotheses end
+        labels
+    }
 
-        let ep = proof
-            .iter()
-            .position(|x| x.as_ref() == ")")
-            .expect("Failed to find matching parthesis");
-
-        labels.extend((&proof[1..ep]).iter().cloned());
-
-        let compressed_proof = proof[ep + 1..].join("");
-
-        // println!("Labels {:?}", labels);
-        // println!("proof {}", compressed_proof);
-
+    fn get_proof_indeces(compressed_proof: String) -> Vec<Option<usize>> {
         let mut proof_indeces: Vec<Option<usize>> = vec![];
         let mut cur_index: usize = 0;
 
@@ -216,16 +207,43 @@ impl MM {
                 proof_indeces.push(None);
             } else if ('A'..='T').contains(&ch) {
                 cur_index = 20 * cur_index + (ch as i32 - 'A' as i32 + 1) as usize;
+                if cur_index == 0 {
+                    panic!("current index was tagged as 0, bad character {}", ch);
+                }
                 proof_indeces.push(Some(cur_index - 1));
                 cur_index = 0;
             } else if ('U'..='Y').contains(&ch) {
                 cur_index = 5 * cur_index + (ch as i32 - 'U' as i32 + 1) as usize;
             }
         }
+        proof_indeces
+    }
+
+    fn decompress_proof(&self, stat: Statement, proof: Proof) -> Proof {
+        //I should change the type system to differentiate betweene the different types of proofs
+        // println!("Statement {:?}", stat);
+        //
+
+        let ep = proof
+            .iter()
+            .position(|x| x.as_ref() == ")")
+            .expect("Failed to find matching parthesis");
+
+        let mut labels = self.get_labels(stat, ep);
+        let hyp_end = labels.len(); //when the f and e end
+        labels.extend((&proof[1..ep]).iter().cloned());
+
+        let compressed_proof = proof[ep + 1..].join("");
+
+        // println!("Labels {:?}", labels);
+        // println!("proof {}", compressed_proof);
+
         // println!("proof_ints: {:?}", proof_ints);
 
         let label_end = labels.len();
         // println!("labels: {:?}", labels);
+
+        let proof_indeces = Self::get_proof_indeces(compressed_proof);
 
         let mut decompressed_ints: Vec<usize> = vec![];
         type CompressedProof = Rc<[usize]>;
@@ -330,7 +348,7 @@ impl MM {
             .collect(); //fix the clone
     }
 
-    fn verify(&mut self, stat_label: String, stat: Statement, mut proof: Proof) {
+    fn verify(&self, stat_label: String, stat: Statement, mut proof: Proof) {
         let mut stack: Vec<Statement> = vec![];
         let _stat_type = stat[0].clone();
         if proof[0].as_ref() == "(" {
@@ -370,7 +388,7 @@ impl MM {
                     if stack.len() < npop {
                         panic!("stack underflow")
                     }
-                    let mut sp = sp as usize;
+                    let mut sp = sp;
                     let mut subst = HashMap::<LanguageToken, Statement>::new();
 
                     for (k, v) in mand_var {
@@ -378,7 +396,7 @@ impl MM {
                         // println!("Before checking if equal {:?} : {:?} with sp {:?}", &entry[0], k, sp);
 
                         if &entry[0] != k {
-                            panic!("stack entry doesn't match mandatry var hypothess");
+                            panic!("stack entry doesn't match mandatry var hypothess, found {} and {}", &entry[0], k);
                         }
 
                         subst.insert(v.clone(), entry[1..].into());
