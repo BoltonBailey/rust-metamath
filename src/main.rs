@@ -1,6 +1,6 @@
 mod reader;
 mod framestack;
-
+use std::ops::Deref;
 use std::cmp::max;
 use std::cmp::min;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -348,37 +348,14 @@ impl MM {
             .collect(); //fix the clone
     }
 
-    fn verify(&self, stat_label: String, stat: Statement, mut proof: Proof) {
-        let mut stack: Vec<Statement> = vec![];
-        let _stat_type = stat[0].clone();
-        if proof[0].as_ref() == "(" {
-            println!("Starting decompression for {}", stat_label);
-            proof = self.decompress_proof(stat.clone(), proof);
-            println!("Finished decompression for {}", stat_label);
-        }
+    fn verify_assertion(&mut self, assertion: &Assertion, stack: &mut Vec<Statement>) {
 
-        if proof.is_empty() {
-            println!("Did not find proof for {}, skipping", stat_label);
-            return;
-        }
-
-        for label in proof {
-            let stepdat = &self.labels[&label];
-            // println!("{:?} : {:?}", label, self.labels[&label]);
-
-            match &**stepdat {
-                LabelEntry::DollarA(Assertion {
+let Assertion {
                     dvs: distinct,
                     f_hyps: mand_var,
                     e_hyps: hyp,
                     stat: result,
-                })
-                | LabelEntry::DollarP(Assertion {
-                    dvs: distinct,
-                    f_hyps: mand_var,
-                    e_hyps: hyp,
-                    stat: result,
-                }) => {
+                } = assertion;
                     // println!("{:?}", stepdat);
                     // println!("stack: {:?}", stack);
                     let npop = mand_var.len() + hyp.len();
@@ -434,6 +411,30 @@ impl MM {
                     // println!("stack: {:?}", stack);
                     stack.push(self.apply_subst(result, &subst));
                     // println!("stack: {:?}", stack);
+    }
+
+    fn verify(&mut self, stat_label: String, stat: Statement, mut proof: Proof) {
+        let mut stack: Vec<Statement> = vec![];
+        let _stat_type = stat[0].clone();
+        if proof[0].as_ref() == "(" {
+            println!("Starting decompression for {}", stat_label);
+            proof = self.decompress_proof(stat.clone(), proof);
+            println!("Finished decompression for {}", stat_label);
+        }
+
+        if proof.is_empty() {
+            println!("Did not find proof for {}, skipping", stat_label);
+            return;
+        }
+
+        for label in proof {
+            let stepdat  = Rc::clone(&self.labels[&label]);
+            // println!("{:?} : {:?}", label, self.labels[&label]);
+
+            match stepdat.deref() {
+                LabelEntry::DollarA(a)
+                | LabelEntry::DollarP(a) => {
+                    self.verify_assertion(&a, &mut stack);
                 }
                 LabelEntry::DollarF(x) | LabelEntry::DollarE(x) => {
                     stack.push(x.clone());
