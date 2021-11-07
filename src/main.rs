@@ -171,8 +171,164 @@ impl MM {
         vars
     }
 
-    fn decompress_and_verify(&self, stat: Statement, proof: Proof) {
-        todo!()
+    fn decompress_and_verify(&mut self, stat: Statement, proof: Proof) {
+        // yes I copy pasted this, I know it's bad
+        // so please work
+         println!("complete proof {:?}", proof);
+        let ep = proof
+            .iter()
+            .position(|x| x.as_ref() == ")")
+            .expect("Failed to find matching parthesis");
+
+        let mut labels: Vec<Rc<str>> = self.get_labels(Rc::clone(&stat), ep);
+        let hyp_end = labels.len(); //when the f and e end
+        labels.extend((&proof[1..ep]).iter().cloned());
+
+        let compressed_proof = proof[ep + 1..].join("");
+        let label_end = labels.len();
+
+         println!("Labels {:?}", labels);
+         println!("proof {}", compressed_proof);
+
+        // println!("proof_ints: {:?}", proof_ints);
+
+        // println!("labels: {:?}", labels);
+
+        let proof_indeces = Self::get_proof_indeces(compressed_proof);
+
+        type CompressedProof = Rc<[usize]>;
+        let mut subproofs: Vec<Statement> = vec![]; //stuff tagged  with Zs
+        //let mut prev_proofs: Vec<CompressedProof> = vec![]; // when we contruct a subproof, we have to know the hyps
+        let mut stack: Vec<Statement> = vec![];
+        let mut previous_proof: Option<Statement> = None;
+
+
+        for pf_int in &proof_indeces {
+            println!("subproofs : {:?}", subproofs);
+             println!("pf_int: {:?}, label_end: {:?}", pf_int, label_end);
+            match pf_int {
+                None => {
+                    let last_proof = previous_proof.as_ref().expect("Error in decompressing proof, found unexpected Z");
+                    subproofs.push(Rc::clone(last_proof));
+
+
+
+                    // let final_axiom_index = last_proof.last().expect("Error in proof, somehow an empty proof was found");
+
+                    // if *final_axiom_index < label_end {
+                    //     // the last one was just a label, just put the statement back
+                    //     let label = &labels[*final_axiom_index];
+                    //     let data = &self.labels[label];
+
+                    //     match data.as_ref() {
+                    //         LabelEntry::DollarA(a) | LabelEntry::DollarP(a) => {
+
+                    //             let Assertion {stat: statement, ..} = a;
+                    //             subproofs.push(stat);
+
+
+                    //         }
+                    //         LabelEntry::DollarE(x) | LabelEntry::DollarF(x) => subproofs.push(Rc::clone(x)),
+                    //     }
+
+                    // } else {
+                    //     //then this means that it was a proof that was already done, so we can just copy that
+                    //     subproofs.push(subproofs[*final_axiom_index]);
+
+                    // }
+                    // subproofs.push(.clone());
+                }
+                Some(i) if *i < hyp_end => {
+                    //mandatory hypothesis
+                    //prev_proofs.push(Rc::new([*i]));
+                    let label = &labels[*i];
+                    let data = Rc::clone(&self.labels[label]);
+
+                    match data.deref() {
+                        LabelEntry::DollarA(a)
+                        | LabelEntry::DollarP(a) => {
+         println!("Verifying hypothesis  {:?}", a);
+                            self.verify_assertion(&a, &mut stack);
+                        }
+                        LabelEntry::DollarF(x) | LabelEntry::DollarE(x) => {
+                            stack.push(x.clone());
+                        }
+                    }
+                }
+
+                Some(i) if hyp_end <= *i && *i < label_end => {
+                    //one of the given labels in the proof
+
+                    let label_name = &labels[*i];
+
+         println!("Labels {:?}", labels);
+                    let step_data = Rc::clone(&self.labels[label_name]);
+
+                    match step_data.deref() {
+                        LabelEntry::DollarA(a)
+                        | LabelEntry::DollarP(a) => {
+
+
+                            self.verify_assertion(a, &mut stack);
+
+                            let Assertion { e_hyps: shyps, f_hyps: svars, .. } = a;
+
+
+                            // when we get things that take hypothesis, we have to include those
+                            // in the list of previos proof,
+                            // let nhyps = shyps.len() + svars.len();
+
+                            // //let new_index = prev_proofs.len() - nhyps;
+
+                            // if nhyps != 0 {
+                            //     // first remove all the previous proofs that
+                            //     // correpsonded with hypothesis of the axiom/proof
+                            //     let mand_hyps: Vec<CompressedProof> =
+                            //         prev_proofs.drain(new_index..).collect(); // I tried putting this in oneb ig iterator but it didn't work
+
+                            //     //for the new proof, the new proof consists of
+                            //     // first proofs of all the hypothesis
+                            //     // once all the hypothesis are satisfied
+                            //     // we can apply the axiom/proof
+                            //     let new_prevpf = mand_hyps
+                            //         .iter()
+                            //         .flat_map(|x| x.iter())
+                            //         .chain(std::iter::once(i));
+
+                            //     prev_proofs.push(new_prevpf.copied().collect())
+                            // } else {
+                            //     prev_proofs.push(Rc::new([*i]));
+                            // }
+                        }
+                        //_ => prev_proofs.push(Rc::new([*i])),
+                        _ => {}
+                    }
+                }
+
+                Some(i) if label_end <= *i => {
+                    // no need to verify something already proved
+                     println!("alrady proved: *i: {:?}, label_end: {:?}", pf_int, label_end);
+                    let pf = &subproofs[(*i as usize) - label_end];
+                     println!("expanded subpf {:?}", pf);
+                    //prev_proofs.push(pf.clone());
+                    //let final_axiom_index = pf.last().expect("Somehow, there was a subproof that proved nothing");
+                    stack.push(Rc::clone(pf));
+
+                }
+
+                _ => {
+                    panic!("Bad compression")
+                }
+            }
+        }
+
+        if stack.len() != 1 {
+            panic!("stack has anentry greater than >1 at end")
+        }
+        if stack[0] != stat {
+            panic!("assertion proved {:?} but does not match expected {:?} ", stack[0], stat);
+        }
+
     }
 
     fn get_labels(&self, stat: Statement, ep: usize) -> Vec<Label> {
@@ -219,6 +375,7 @@ impl MM {
         proof_indeces
     }
 
+    // old version
     fn decompress_proof(&self, stat: Statement, proof: Proof) -> Proof {
         //I should change the type system to differentiate betweene the different types of proofs
         // println!("Statement {:?}", stat);
@@ -330,7 +487,7 @@ impl MM {
 
                 Some(i) if label_end <= *i => {
                     // println!("*i: {:?}, label_end: {:?}", pf_int, label_end);
-                    let pf = &subproofs[(*i as usize) - label_end];
+                    let pf = &subproofs[(*i) - label_end];
                     // println!("expanded subpf {:?}", pf);
                     decompressed_ints.extend(pf.iter());
                     prev_proofs.push(pf.clone());
@@ -344,7 +501,7 @@ impl MM {
 
         return decompressed_ints
             .iter()
-            .map(|i| labels[*i as usize].clone())
+            .map(|i| labels[*i].clone())
             .collect(); //fix the clone
     }
 
@@ -357,7 +514,7 @@ let Assertion {
                     stat: result,
                 } = assertion;
                     // println!("{:?}", stepdat);
-                    // println!("stack: {:?}", stack);
+                     println!("stack: {:?}", stack);
                     let npop = mand_var.len() + hyp.len();
                     // println!("stacklength {:?}, ", stack.len());
                     let sp = stack.len() - npop;
@@ -417,9 +574,12 @@ let Assertion {
         let mut stack: Vec<Statement> = vec![];
         let _stat_type = stat[0].clone();
         if proof[0].as_ref() == "(" {
-            println!("Starting decompression for {}", stat_label);
-            proof = self.decompress_proof(stat.clone(), proof);
-            println!("Finished decompression for {}", stat_label);
+            // println!("Starting decompression for {}", stat_label);
+            // proof = self.decompress_proof(stat.clone(), proof);
+            // println!("Finished decompression for {}", stat_label);
+            self.decompress_and_verify(stat, proof);
+            return;
+
         }
 
         if proof.is_empty() {
