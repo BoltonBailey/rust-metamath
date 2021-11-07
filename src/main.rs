@@ -1,9 +1,9 @@
 mod reader;
 mod framestack;
 use std::ops::Deref;
-use std::cmp::max;
-use std::cmp::min;
-use std::collections::{HashMap, HashSet, VecDeque};
+
+
+use std::collections::{HashMap};
 use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
@@ -253,7 +253,7 @@ impl MM {
                         LabelEntry::DollarA(a)
                         | LabelEntry::DollarP(a) => {
                             println!("Verifying hypothesis  {:?}", a);
-                            let new_prev = self.verify_assertion(&a, &mut stack);
+                            let new_prev = self.verify_assertion(a, &mut stack);
                             previous_proof = Some(new_prev);
                         }
                         LabelEntry::DollarF(x) | LabelEntry::DollarE(x) => {
@@ -342,7 +342,7 @@ impl MM {
 
     }
 
-    fn get_labels(&self, stat: Statement, ep: usize) -> Vec<Label> {
+    fn get_labels(&self, stat: Statement, _ep: usize) -> Vec<Label> {
 
         let Assertion {
             dvs: _dm,
@@ -587,7 +587,7 @@ let Assertion {
                     // println!("stack: {:?}", stack);
     }
 
-    fn verify(&mut self, stat_label: String, stat: Statement, mut proof: Proof) {
+    fn verify(&mut self, stat_label: String, stat: Statement, proof: Proof) {
         let mut stack: Vec<Statement> = vec![];
         let _stat_type = stat[0].clone();
         if proof[0].as_ref() == "(" {
@@ -611,7 +611,7 @@ let Assertion {
             match stepdat.deref() {
                 LabelEntry::DollarA(a)
                 | LabelEntry::DollarP(a) => {
-                    self.verify_assertion(&a, &mut stack);
+                    self.verify_assertion(a, &mut stack);
                 }
                 LabelEntry::DollarF(x) | LabelEntry::DollarE(x) => {
                     stack.push(x.clone());

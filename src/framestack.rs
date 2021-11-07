@@ -1,13 +1,13 @@
 use std::cmp::max;
 use std::cmp::min;
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::fs::File;
-use std::io::BufReader;
-use std::rc::Rc;
+
+
+
 
 use crate::reader::Label;
 use crate::reader::Statement;
-use crate::reader::{LanguageToken, Tokens, Proof};
+use crate::reader::{LanguageToken};
 
 #[derive(Default, Debug)]
 pub struct Frame {
