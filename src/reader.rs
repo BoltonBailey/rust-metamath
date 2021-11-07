@@ -1,6 +1,9 @@
-use std::{collections::HashSet, fs::File, io::{BufRead, BufReader}, rc::Rc};
-
-
+use std::{
+    collections::HashSet,
+    fs::File,
+    io::{BufRead, BufReader},
+    rc::Rc,
+};
 
 #[derive(Debug)]
 pub struct Tokens {
@@ -113,4 +116,3 @@ impl Tokens {
         stat.into()
     }
 }
-

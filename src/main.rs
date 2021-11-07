@@ -1,21 +1,18 @@
-mod reader;
 mod framestack;
+mod reader;
 use std::ops::Deref;
 
-
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 
 use framestack::FrameStack;
 
+use crate::framestack::Assertion;
 use crate::reader::Label;
 use crate::reader::Statement;
-use crate::framestack::Assertion;
-use crate::reader::{LanguageToken, Tokens, Proof};
-
-
+use crate::reader::{LanguageToken, Proof, Tokens};
 
 // first one is label type,
 
@@ -174,8 +171,8 @@ impl MM {
     fn decompress_and_verify(&mut self, stat: Statement, proof: Proof) {
         // yes I copy pasted this, I know it's bad
         // so please work
-         //println!("complete proof {:?}", proof);
-         //
+        //println!("complete proof {:?}", proof);
+        //
         let ep = proof
             .iter()
             .position(|x| x.as_ref() == ")")
@@ -193,8 +190,8 @@ impl MM {
 
         let label_end = labels.len();
 
-         //println!("Labels {:?}", labels);
-         //println!("proof {}", compressed_proof);
+        //println!("Labels {:?}", labels);
+        //println!("proof {}", compressed_proof);
 
         // println!("proof_ints: {:?}", proof_ints);
 
@@ -204,17 +201,19 @@ impl MM {
 
         type CompressedProof = Rc<[usize]>;
         let mut subproofs: Vec<Statement> = vec![]; //stuff tagged  with Zs
-        //let mut prev_proofs: Vec<CompressedProof> = vec![]; // when we contruct a subproof, we have to know the hyps
+                                                    //let mut prev_proofs: Vec<CompressedProof> = vec![]; // when we contruct a subproof, we have to know the hyps
         let mut stack: Vec<Statement> = vec![];
         let mut previous_proof: Option<Statement> = None;
 
         for pf_int in &proof_indeces {
             //println!("subproofs : {:?}", subproofs);
             //println!("previous proof : {:?}", previous_proof);
-             //println!("pf_int: {:?}, label_end: {:?}", pf_int, label_end);
+            //println!("pf_int: {:?}, label_end: {:?}", pf_int, label_end);
             match pf_int {
                 None => {
-                    let last_proof = previous_proof.as_ref().expect("Error in decompressing proof, found unexpected Z");
+                    let last_proof = previous_proof
+                        .as_ref()
+                        .expect("Error in decompressing proof, found unexpected Z");
                     subproofs.push(Rc::clone(last_proof));
                     // println!("Tagging as subproof, subproofs now : {:?}", subproofs.iter().map( |x| x.join(" ") ).collect::<Vec<String>>());
 
@@ -230,7 +229,6 @@ impl MM {
 
                     //             let Assertion {stat: statement, ..} = a;
                     //             subproofs.push(stat);
-
 
                     //         }
                     //         LabelEntry::DollarE(x) | LabelEntry::DollarF(x) => subproofs.push(Rc::clone(x)),
@@ -250,8 +248,7 @@ impl MM {
                     let data = Rc::clone(&self.labels[label]);
 
                     match data.deref() {
-                        LabelEntry::DollarA(a)
-                        | LabelEntry::DollarP(a) => {
+                        LabelEntry::DollarA(a) | LabelEntry::DollarP(a) => {
                             println!("Verifying hypothesis  {:?}", a);
                             let new_prev = self.verify_assertion(a, &mut stack);
                             previous_proof = Some(new_prev);
@@ -272,14 +269,10 @@ impl MM {
                     let step_data = Rc::clone(&self.labels[label_name]);
 
                     match step_data.deref() {
-                        LabelEntry::DollarA(a)
-                        | LabelEntry::DollarP(a) => {
-
-
+                        LabelEntry::DollarA(a) | LabelEntry::DollarP(a) => {
                             let prev_statement = self.verify_assertion(a, &mut stack);
 
                             previous_proof = Some(prev_statement);
-
 
                             // when we get things that take hypothesis, we have to include those
                             // in the list of previos proof,
@@ -307,25 +300,23 @@ impl MM {
                             //     prev_proofs.push(Rc::new([*i]));
                             // }
                         }
-                        LabelEntry::DollarE(x) |  LabelEntry::DollarF(x) => {
+                        LabelEntry::DollarE(x) | LabelEntry::DollarF(x) => {
                             previous_proof = Some(Rc::clone(x));
                             stack.push(Rc::clone(x));
-                        }
-                        //_ => prev_proofs.push(Rc::new([*i])),
+                        } //_ => prev_proofs.push(Rc::new([*i])),
                     }
                 }
 
                 Some(i) if label_end <= *i => {
                     // no need to verify something already proved
-                     //println!("alrady proved: *i: {:?}, label_end: {:?}", pf_int, label_end);
+                    //println!("alrady proved: *i: {:?}, label_end: {:?}", pf_int, label_end);
                     let pf = &subproofs[(*i as usize) - label_end];
-                     //println!("Reusing old proof: {:?}", pf);
+                    //println!("Reusing old proof: {:?}", pf);
                     //prev_proofs.push(pf.clone());
                     //let final_axiom_index = pf.last().expect("Somehow, there was a subproof that proved nothing");
-                     //println!("subproofs : {:?}", subproofs);
+                    //println!("subproofs : {:?}", subproofs);
                     stack.push(Rc::clone(pf));
                     previous_proof = Some(Rc::clone(pf));
-
                 }
                 _ => {
                     panic!("Bad compression")
@@ -337,13 +328,14 @@ impl MM {
             panic!("stack has anentry greater than >1 at end")
         }
         if stack[0] != stat {
-            panic!("assertion proved {:?} but does not match expected {:?} ", stack[0], stat);
+            panic!(
+                "assertion proved {:?} but does not match expected {:?} ",
+                stack[0], stat
+            );
         }
-
     }
 
     fn get_labels(&self, stat: Statement, _ep: usize) -> Vec<Label> {
-
         let Assertion {
             dvs: _dm,
             f_hyps: mand_hyp_stmnts,
@@ -516,75 +508,83 @@ impl MM {
             .collect(); //fix the clone
     }
     fn print_stack(stack: &Vec<Statement>) {
-                     println!("stack: {:?}", stack.iter().map(|x| x.join(" ")).collect::<Vec<String>>());
-}
+        println!(
+            "stack: {:?}",
+            stack.iter().map(|x| x.join(" ")).collect::<Vec<String>>()
+        );
+    }
 
     fn verify_assertion(&mut self, assertion: &Assertion, stack: &mut Vec<Statement>) -> Statement {
+        let Assertion {
+            dvs: distinct,
+            f_hyps: mand_var,
+            e_hyps: hyp,
+            stat: result,
+        } = assertion;
+        // println!("{:?}", stepdat);
+        //Self::print_stack(stack);
+        //println!("assertion: {:?}", assertion);
+        let npop = mand_var.len() + hyp.len();
+        // println!("stacklength {:?}, ", stack.len());
+        let sp = stack.len() - npop;
+        // println!("npop {:?}, sp {:?}", npop, sp);
+        if stack.len() < npop {
+            panic!("stack underflow")
+        }
+        let mut sp = sp;
+        let mut subst = HashMap::<LanguageToken, Statement>::new();
 
-let Assertion {
-                    dvs: distinct,
-                    f_hyps: mand_var,
-                    e_hyps: hyp,
-                    stat: result,
-                } = assertion;
-                    // println!("{:?}", stepdat);
-                    //Self::print_stack(stack);
-                     //println!("assertion: {:?}", assertion);
-                    let npop = mand_var.len() + hyp.len();
-                    // println!("stacklength {:?}, ", stack.len());
-                    let sp = stack.len() - npop;
-                    // println!("npop {:?}, sp {:?}", npop, sp);
-                    if stack.len() < npop {
-                        panic!("stack underflow")
+        for (k, v) in mand_var {
+            let entry: Statement = stack[sp].clone();
+            // println!("Before checking if equal {:?} : {:?} with sp {:?}", &entry[0], k, sp);
+
+            if &entry[0] != k {
+                panic!(
+                    "stack entry doesn't match mandatry var hypothess, found {} and {}",
+                    &entry[0], k
+                );
+            }
+
+            subst.insert(v.clone(), entry[1..].into());
+            sp += 1;
+        }
+        // println!("subst: {:?}", subst);
+
+        for (x, y) in distinct {
+            // println!("dist {:?} {:?} {:?} {:?}", x, y, subst[x], subst[y]);
+            let x_vars = self.find_vars(Rc::clone(&subst[x]));
+            let y_vars = self.find_vars(subst[y].clone());
+
+            // println!("V(x) = {:?}", x_vars);
+            // println!("V(y) = {:?}", y_vars);
+
+            for x in &x_vars {
+                for y in &y_vars {
+                    if x == y || !self.fs.lookup_d(x.clone(), y.clone()) {
+                        panic!("Disjoint violation");
                     }
-                    let mut sp = sp;
-                    let mut subst = HashMap::<LanguageToken, Statement>::new();
+                }
+            }
+        }
+        for h in hyp {
+            let entry = &stack[sp];
+            let subst_h = self.apply_subst(h, &subst);
+            if entry != &subst_h {
+                panic!(
+                    "Stack entry: {:?} doesn't match hypothesis {:?}",
+                    entry, &subst_h
+                );
+            }
+            sp += 1;
+        }
 
-                    for (k, v) in mand_var {
-                        let entry: Statement = stack[sp].clone();
-                        // println!("Before checking if equal {:?} : {:?} with sp {:?}", &entry[0], k, sp);
-
-                        if &entry[0] != k {
-                            panic!("stack entry doesn't match mandatry var hypothess, found {} and {}", &entry[0], k);
-                        }
-
-                        subst.insert(v.clone(), entry[1..].into());
-                        sp += 1;
-                    }
-                    // println!("subst: {:?}", subst);
-
-                    for (x, y) in distinct {
-                        // println!("dist {:?} {:?} {:?} {:?}", x, y, subst[x], subst[y]);
-                        let x_vars = self.find_vars(Rc::clone(&subst[x]));
-                        let y_vars = self.find_vars(subst[y].clone());
-
-                        // println!("V(x) = {:?}", x_vars);
-                        // println!("V(y) = {:?}", y_vars);
-
-                        for x in &x_vars {
-                            for y in &y_vars {
-                                if x == y || !self.fs.lookup_d(x.clone(), y.clone()) {
-                                    panic!("Disjoint violation");
-                                }
-                            }
-                        }
-                    }
-                    for h in hyp {
-                        let entry = &stack[sp];
-                        let subst_h = self.apply_subst(h, &subst);
-                        if entry != &subst_h {
-                            panic!("Stack entry: {:?} doesn't match hypothesis {:?}", entry, &subst_h);
-                        }
-                        sp += 1;
-                    }
-
-                    // println!("stack: {:?}", stack);
-                    stack.drain(stack.len() - npop..);
-                    // println!("stack: {:?}", stack);
-                    let substituted = self.apply_subst(result, &subst);
-                    stack.push(Rc::clone(&substituted));
-                    substituted
-                    // println!("stack: {:?}", stack);
+        // println!("stack: {:?}", stack);
+        stack.drain(stack.len() - npop..);
+        // println!("stack: {:?}", stack);
+        let substituted = self.apply_subst(result, &subst);
+        stack.push(Rc::clone(&substituted));
+        substituted
+        // println!("stack: {:?}", stack);
     }
 
     fn verify(&mut self, stat_label: String, stat: Statement, proof: Proof) {
@@ -596,7 +596,6 @@ let Assertion {
             // println!("Finished decompression for {}", stat_label);
             self.decompress_and_verify(stat, proof);
             return;
-
         }
 
         if proof.is_empty() {
@@ -605,12 +604,11 @@ let Assertion {
         }
 
         for label in proof {
-            let stepdat  = Rc::clone(&self.labels[&label]);
+            let stepdat = Rc::clone(&self.labels[&label]);
             // println!("{:?} : {:?}", label, self.labels[&label]);
 
             match stepdat.deref() {
-                LabelEntry::DollarA(a)
-                | LabelEntry::DollarP(a) => {
+                LabelEntry::DollarA(a) | LabelEntry::DollarP(a) => {
                     self.verify_assertion(a, &mut stack);
                 }
                 LabelEntry::DollarF(x) | LabelEntry::DollarE(x) => {
