@@ -183,67 +183,31 @@ impl MM {
         labels.extend((&proof[1..ep]).iter().cloned());
 
         let compressed_proof = proof[ep + 1..].join("");
-        if compressed_proof.is_empty() {
+
+        let label_end = labels.len();
+
+
+        let proof_indeces = Self::get_proof_indeces(compressed_proof);
+        if proof_indeces.is_empty() {
             // we didn't do the proof yet
             return;
         }
 
-        let label_end = labels.len();
-
-        //println!("Labels {:?}", labels);
-        //println!("proof {}", compressed_proof);
-
-        // println!("proof_ints: {:?}", proof_ints);
-
-        // println!("labels: {:?}", labels);
-
-        let proof_indeces = Self::get_proof_indeces(compressed_proof);
-
-        type CompressedProof = Rc<[usize]>;
         let mut subproofs: Vec<Statement> = vec![]; //stuff tagged  with Zs
                                                     //let mut prev_proofs: Vec<CompressedProof> = vec![]; // when we contruct a subproof, we have to know the hyps
         let mut stack: Vec<Statement> = vec![];
         let mut previous_proof: Option<Statement> = None;
 
         for pf_int in &proof_indeces {
-            //println!("subproofs : {:?}", subproofs);
-            //println!("previous proof : {:?}", previous_proof);
-            //println!("pf_int: {:?}, label_end: {:?}", pf_int, label_end);
             match pf_int {
                 None => {
                     let last_proof = previous_proof
                         .as_ref()
                         .expect("Error in decompressing proof, found unexpected Z");
                     subproofs.push(Rc::clone(last_proof));
-                    // println!("Tagging as subproof, subproofs now : {:?}", subproofs.iter().map( |x| x.join(" ") ).collect::<Vec<String>>());
-
-                    // let final_axiom_index = last_proof.last().expect("Error in proof, somehow an empty proof was found");
-
-                    // if *final_axiom_index < label_end {
-                    //     // the last one was just a label, just put the statement back
-                    //     let label = &labels[*final_axiom_index];
-                    //     let data = &self.labels[label];
-
-                    //     match data.as_ref() {
-                    //         LabelEntry::DollarA(a) | LabelEntry::DollarP(a) => {
-
-                    //             let Assertion {stat: statement, ..} = a;
-                    //             subproofs.push(stat);
-
-                    //         }
-                    //         LabelEntry::DollarE(x) | LabelEntry::DollarF(x) => subproofs.push(Rc::clone(x)),
-                    //     }
-
-                    // } else {
-                    //     //then this means that it was a proof that was already done, so we can just copy that
-                    //     subproofs.push(subproofs[*final_axiom_index]);
-
-                    // }
-                    // subproofs.push(.clone());
                 }
                 Some(i) if *i < hyp_end => {
                     //mandatory hypothesis
-                    //prev_proofs.push(Rc::new([*i]));
                     let label = &labels[*i];
                     let data = Rc::clone(&self.labels[label]);
 
@@ -265,7 +229,6 @@ impl MM {
 
                     let label_name = &labels[*i];
 
-                    //println!("Decompressed to label {:?}", label_name);
                     let step_data = Rc::clone(&self.labels[label_name]);
 
                     match step_data.deref() {
@@ -274,47 +237,17 @@ impl MM {
 
                             previous_proof = Some(prev_statement);
 
-                            // when we get things that take hypothesis, we have to include those
-                            // in the list of previos proof,
-                            // let nhyps = shyps.len() + svars.len();
-
-                            // //let new_index = prev_proofs.len() - nhyps;
-
-                            // if nhyps != 0 {
-                            //     // first remove all the previous proofs that
-                            //     // correpsonded with hypothesis of the axiom/proof
-                            //     let mand_hyps: Vec<CompressedProof> =
-                            //         prev_proofs.drain(new_index..).collect(); // I tried putting this in oneb ig iterator but it didn't work
-
-                            //     //for the new proof, the new proof consists of
-                            //     // first proofs of all the hypothesis
-                            //     // once all the hypothesis are satisfied
-                            //     // we can apply the axiom/proof
-                            //     let new_prevpf = mand_hyps
-                            //         .iter()
-                            //         .flat_map(|x| x.iter())
-                            //         .chain(std::iter::once(i));
-
-                            //     prev_proofs.push(new_prevpf.copied().collect())
-                            // } else {
-                            //     prev_proofs.push(Rc::new([*i]));
-                            // }
                         }
                         LabelEntry::DollarE(x) | LabelEntry::DollarF(x) => {
                             previous_proof = Some(Rc::clone(x));
                             stack.push(Rc::clone(x));
-                        } //_ => prev_proofs.push(Rc::new([*i])),
+                        }
                     }
                 }
 
                 Some(i) if label_end <= *i => {
                     // no need to verify something already proved
-                    //println!("alrady proved: *i: {:?}, label_end: {:?}", pf_int, label_end);
                     let pf = &subproofs[(*i as usize) - label_end];
-                    //println!("Reusing old proof: {:?}", pf);
-                    //prev_proofs.push(pf.clone());
-                    //let final_axiom_index = pf.last().expect("Somehow, there was a subproof that proved nothing");
-                    //println!("subproofs : {:?}", subproofs);
                     stack.push(Rc::clone(pf));
                     previous_proof = Some(Rc::clone(pf));
                 }
@@ -350,8 +283,6 @@ impl MM {
 
         let hyps = hype_stmnts.iter().map(|s| self.fs.lookup_e(s.clone()));
 
-        // println!("mand_hyps {:?}", mand_hyps);
-        // println!("hyps {:?}", hyps);
         let labels: Vec<Label> = mand_hyps.chain(hyps).collect(); // contains both the mandatory hypotheses and the e println!("Labels {:?}", labels);
 
         labels
@@ -378,135 +309,6 @@ impl MM {
         proof_indeces
     }
 
-    // old version
-    fn decompress_proof(&self, stat: Statement, proof: Proof) -> Proof {
-        //I should change the type system to differentiate betweene the different types of proofs
-        // println!("Statement {:?}", stat);
-        //
-
-        let ep = proof
-            .iter()
-            .position(|x| x.as_ref() == ")")
-            .expect("Failed to find matching parthesis");
-
-        let mut labels = self.get_labels(stat, ep);
-        let hyp_end = labels.len(); //when the f and e end
-        labels.extend((&proof[1..ep]).iter().cloned());
-
-        let compressed_proof = proof[ep + 1..].join("");
-
-        // println!("Labels {:?}", labels);
-        // println!("proof {}", compressed_proof);
-
-        // println!("proof_ints: {:?}", proof_ints);
-
-        let label_end = labels.len();
-        // println!("labels: {:?}", labels);
-
-        let proof_indeces = Self::get_proof_indeces(compressed_proof);
-
-        let mut decompressed_ints: Vec<usize> = vec![];
-        type CompressedProof = Rc<[usize]>;
-        let mut subproofs: Vec<CompressedProof> = vec![]; //stuff tagged  with Zs
-        let mut prev_proofs: Vec<CompressedProof> = vec![];
-
-        for pf_int in &proof_indeces {
-            // println!("subproofs : {:?}", subproofs);
-            // println!("pf_int: {:?}, label_end: {:?}", pf_int, label_end);
-            match pf_int {
-                None => {
-                    subproofs.push(
-                        prev_proofs
-                            .last()
-                            .expect("Error in decompressing proof, found unexpected Z")
-                            .clone(),
-                    );
-                }
-                Some(i) if *i < hyp_end => {
-                    //mandatory hypothesis
-                    prev_proofs.push(Rc::new([*i]));
-                    decompressed_ints.push(*i);
-                }
-
-                Some(i) if hyp_end <= *i && *i < label_end => {
-                    //one of the given labels in the proof
-                    decompressed_ints.push(*i);
-
-                    let label_name = &labels[*i];
-
-                    let step_data = &self.labels[label_name];
-
-                    match &**step_data {
-                        //syntax doesn't look correct
-                        LabelEntry::DollarA(Assertion {
-                            dvs: _sd,
-                            f_hyps: svars,
-                            e_hyps: shyps,
-                            stat: _sresult,
-                        })
-                        | LabelEntry::DollarP(Assertion {
-                            dvs: _sd,
-                            f_hyps: svars,
-                            e_hyps: shyps,
-                            stat: _sresult,
-                        }) => {
-                            // when we get things that take hypothesis, we have to include those
-                            // in the list of previos proof,
-                            let nhyps = shyps.len() + svars.len();
-
-                            let new_index = prev_proofs.len() - nhyps;
-
-                            // let new_prevpf;
-                            // if nhyps != 0 {
-                            //     let new_index = prev_proofs.len() - nhyps;
-
-                            //     new_prevpf = prev_proofs[(new_index)..]
-                            //         .iter()
-                            //         .map(|x| x.iter())
-                            //         .flatten()
-                            //         .chain(std::iter::once(i));
-                            //     prev_proofs = prev_proofs[..new_index].to_vec();
-                            // } else {
-                            //     new_prevpf = std::iter::once(i);
-                            // }
-
-                            if nhyps != 0 {
-                                let mand_hyps: Vec<CompressedProof> =
-                                    prev_proofs.drain(new_index..).collect(); // I tried putting this in oneb ig iterator but it didn't work
-
-                                let new_prevpf = mand_hyps
-                                    .iter()
-                                    .flat_map(|x| x.iter())
-                                    .chain(std::iter::once(i));
-
-                                prev_proofs.push(new_prevpf.copied().collect())
-                            } else {
-                                prev_proofs.push(Rc::new([*i]));
-                            }
-                        }
-                        _ => prev_proofs.push(Rc::new([*i])),
-                    }
-                }
-
-                Some(i) if label_end <= *i => {
-                    // println!("*i: {:?}, label_end: {:?}", pf_int, label_end);
-                    let pf = &subproofs[(*i) - label_end];
-                    // println!("expanded subpf {:?}", pf);
-                    decompressed_ints.extend(pf.iter());
-                    prev_proofs.push(pf.clone());
-                }
-
-                _ => {
-                    panic!("Bad compression")
-                }
-            }
-        }
-
-        return decompressed_ints
-            .iter()
-            .map(|i| labels[*i].clone())
-            .collect(); //fix the clone
-    }
     fn print_stack(stack: &Vec<Statement>) {
         println!(
             "stack: {:?}",
@@ -521,13 +323,8 @@ impl MM {
             e_hyps: hyp,
             stat: result,
         } = assertion;
-        // println!("{:?}", stepdat);
-        //Self::print_stack(stack);
-        //println!("assertion: {:?}", assertion);
         let npop = mand_var.len() + hyp.len();
-        // println!("stacklength {:?}, ", stack.len());
         let sp = stack.len() - npop;
-        // println!("npop {:?}, sp {:?}", npop, sp);
         if stack.len() < npop {
             panic!("stack underflow")
         }
@@ -536,7 +333,6 @@ impl MM {
 
         for (k, v) in mand_var {
             let entry: Statement = stack[sp].clone();
-            // println!("Before checking if equal {:?} : {:?} with sp {:?}", &entry[0], k, sp);
 
             if &entry[0] != k {
                 panic!(
@@ -548,15 +344,11 @@ impl MM {
             subst.insert(v.clone(), entry[1..].into());
             sp += 1;
         }
-        // println!("subst: {:?}", subst);
 
         for (x, y) in distinct {
-            // println!("dist {:?} {:?} {:?} {:?}", x, y, subst[x], subst[y]);
             let x_vars = self.find_vars(Rc::clone(&subst[x]));
             let y_vars = self.find_vars(subst[y].clone());
 
-            // println!("V(x) = {:?}", x_vars);
-            // println!("V(y) = {:?}", y_vars);
 
             for x in &x_vars {
                 for y in &y_vars {
@@ -578,22 +370,16 @@ impl MM {
             sp += 1;
         }
 
-        // println!("stack: {:?}", stack);
         stack.drain(stack.len() - npop..);
-        // println!("stack: {:?}", stack);
         let substituted = self.apply_subst(result, &subst);
         stack.push(Rc::clone(&substituted));
         substituted
-        // println!("stack: {:?}", stack);
     }
 
     fn verify(&mut self, stat_label: String, stat: Statement, proof: Proof) {
         let mut stack: Vec<Statement> = vec![];
         let _stat_type = stat[0].clone();
         if proof[0].as_ref() == "(" {
-            // println!("Starting decompression for {}", stat_label);
-            // proof = self.decompress_proof(stat.clone(), proof);
-            // println!("Finished decompression for {}", stat_label);
             self.decompress_and_verify(stat, proof);
             return;
         }
