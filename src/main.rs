@@ -174,7 +174,8 @@ impl MM {
     fn decompress_and_verify(&mut self, stat: Statement, proof: Proof) {
         // yes I copy pasted this, I know it's bad
         // so please work
-         println!("complete proof {:?}", proof);
+         //println!("complete proof {:?}", proof);
+         //
         let ep = proof
             .iter()
             .position(|x| x.as_ref() == ")")
@@ -185,10 +186,15 @@ impl MM {
         labels.extend((&proof[1..ep]).iter().cloned());
 
         let compressed_proof = proof[ep + 1..].join("");
+        if compressed_proof.is_empty() {
+            // we didn't do the proof yet
+            return;
+        }
+
         let label_end = labels.len();
 
-         println!("Labels {:?}", labels);
-         println!("proof {}", compressed_proof);
+         //println!("Labels {:?}", labels);
+         //println!("proof {}", compressed_proof);
 
         // println!("proof_ints: {:?}", proof_ints);
 
@@ -204,13 +210,13 @@ impl MM {
 
         for pf_int in &proof_indeces {
             //println!("subproofs : {:?}", subproofs);
-            println!("previous proof : {:?}", previous_proof);
+            //println!("previous proof : {:?}", previous_proof);
              //println!("pf_int: {:?}, label_end: {:?}", pf_int, label_end);
             match pf_int {
                 None => {
                     let last_proof = previous_proof.as_ref().expect("Error in decompressing proof, found unexpected Z");
                     subproofs.push(Rc::clone(last_proof));
-                    println!("Tagging as subproof, subproofs now : {:?}", subproofs.iter().map( |x| x.join(" ") ).collect::<Vec<String>>());
+                    // println!("Tagging as subproof, subproofs now : {:?}", subproofs.iter().map( |x| x.join(" ") ).collect::<Vec<String>>());
 
                     // let final_axiom_index = last_proof.last().expect("Error in proof, somehow an empty proof was found");
 
@@ -262,7 +268,7 @@ impl MM {
 
                     let label_name = &labels[*i];
 
-                    println!("Decompressed to label {:?}", label_name);
+                    //println!("Decompressed to label {:?}", label_name);
                     let step_data = Rc::clone(&self.labels[label_name]);
 
                     match step_data.deref() {
@@ -313,7 +319,7 @@ impl MM {
                     // no need to verify something already proved
                      //println!("alrady proved: *i: {:?}, label_end: {:?}", pf_int, label_end);
                     let pf = &subproofs[(*i as usize) - label_end];
-                     println!("Reusing old proof: {:?}", pf);
+                     //println!("Reusing old proof: {:?}", pf);
                     //prev_proofs.push(pf.clone());
                     //let final_axiom_index = pf.last().expect("Somehow, there was a subproof that proved nothing");
                      //println!("subproofs : {:?}", subproofs);
@@ -327,7 +333,7 @@ impl MM {
             }
         }
 
-        if stack.len() != 1 {
+        if stack.len() > 1 {
             panic!("stack has anentry greater than >1 at end")
         }
         if stack[0] != stat {
@@ -522,8 +528,8 @@ let Assertion {
                     stat: result,
                 } = assertion;
                     // println!("{:?}", stepdat);
-                    Self::print_stack(stack);
-                     println!("assertion: {:?}", assertion);
+                    //Self::print_stack(stack);
+                     //println!("assertion: {:?}", assertion);
                     let npop = mand_var.len() + hyp.len();
                     // println!("stacklength {:?}, ", stack.len());
                     let sp = stack.len() - npop;
