@@ -2,8 +2,7 @@
 A Metamath verifier written in rust
 
 
-other verifier's that I will probably take inspiration from.
-
+I've taken inspiritaion from
 
 https://github.com/david-a-wheeler/metamath-knife
 
