@@ -168,7 +168,7 @@ impl MM {
         vars
     }
 
-    fn decompress_and_verify(&mut self, stat: Statement, proof: Proof) {
+    fn decompress_and_verify(&self, stat: Statement, proof: Proof) {
         // yes I copy pasted this, I know it's bad
         // so please work
         //println!("complete proof {:?}", proof);
@@ -316,7 +316,7 @@ impl MM {
         );
     }
 
-    fn verify_assertion(&mut self, assertion: &Assertion, stack: &mut Vec<Statement>) -> Statement {
+    fn verify_assertion(&self, assertion: &Assertion, stack: &mut Vec<Statement>) -> Statement {
         let Assertion {
             dvs: distinct,
             f_hyps: mand_var,
@@ -348,8 +348,6 @@ impl MM {
         for (x, y) in distinct {
             let x_vars = self.find_vars(Rc::clone(&subst[x]));
             let y_vars = self.find_vars(subst[y].clone());
-
-
             for x in &x_vars {
                 for y in &y_vars {
                     if x == y || !self.fs.lookup_d(x.clone(), y.clone()) {
@@ -376,7 +374,7 @@ impl MM {
         substituted
     }
 
-    fn verify(&mut self, stat_label: String, stat: Statement, proof: Proof) {
+    fn verify(&self, stat_label: String, stat: Statement, proof: Proof) {
         let mut stack: Vec<Statement> = vec![];
         let _stat_type = stat[0].clone();
         if proof[0].as_ref() == "(" {
