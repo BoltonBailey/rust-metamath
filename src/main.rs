@@ -5,7 +5,8 @@ use std::ops::Deref;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
-use std::rc::Rc;
+use std::sync::Arc;
+use std::thread;
 
 use framestack::FrameStack;
 
@@ -24,9 +25,10 @@ enum LabelEntry {
     DollarF(Statement),
 }
 
+#[derive(Clone)]
 struct MM {
     fs: FrameStack,
-    labels: HashMap<Label, Rc<LabelEntry>>,
+    labels: HashMap<Label, Arc<LabelEntry>>,
     begin_label: Option<String>,
     stop_label: Option<String>,
 }
@@ -70,8 +72,8 @@ impl MM {
                     // println!("{} $f {} {} $.", label_u, stat[0].clone(), stat[1].clone());
                     self.fs
                         .add_f(stat[1].clone(), stat[0].clone(), label_u.clone());
-                    let data = LabelEntry::DollarF(Rc::new([stat[0].clone(), stat[1].clone()]));
-                    self.labels.insert(label_u, Rc::new(data));
+                    let data = LabelEntry::DollarF(Arc::new([stat[0].clone(), stat[1].clone()]));
+                    self.labels.insert(label_u, Arc::new(data));
                     label = None;
                 }
                 Some("$a") => {
@@ -82,7 +84,7 @@ impl MM {
                     }
 
                     let data = LabelEntry::DollarA(self.fs.make_assertion(toks.readstat()));
-                    self.labels.insert(label_u.into(), Rc::new(data));
+                    self.labels.insert(label_u.into(), Arc::new(data));
                     label = None;
                 }
 
@@ -92,7 +94,7 @@ impl MM {
                     let stat = toks.readstat();
                     self.fs.add_e(stat.clone(), label_u.clone());
                     let data = LabelEntry::DollarE(stat);
-                    self.labels.insert(label_u.clone(), Rc::new(data));
+                    self.labels.insert(label_u.clone(), Arc::new(data));
                     label = None;
                 }
                 Some("$p") => {
@@ -115,10 +117,16 @@ impl MM {
                     }
                     if self.begin_label.is_none() {
                         println!("verifying {}", label_u);
-                        self.verify(label_u.clone(), stat.into(), proof.to_vec());
+                        let cloned = self.clone();
+                        let proof = proof.to_vec();
+                        let stat = stat.into();
+                        let label = label_u.clone();
+                        thread::spawn(move || {
+                            cloned.verify(label, stat, proof);
+                        });
                     }
                     let data = LabelEntry::DollarP(self.fs.make_assertion(stat.into()));
-                    self.labels.insert(label_u.into(), Rc::new(data));
+                    self.labels.insert(label_u.into(), Arc::new(data));
                     label = None;
                 }
                 Some("$d") => {
@@ -178,7 +186,7 @@ impl MM {
             .position(|x| x.as_ref() == ")")
             .expect("Failed to find matching parthesis");
 
-        let mut labels: Vec<Rc<str>> = self.get_labels(Rc::clone(&stat), ep);
+        let mut labels: Vec<Arc<str>> = self.get_labels(Arc::clone(&stat), ep);
         let hyp_end = labels.len(); //when the f and e end
         labels.extend((&proof[1..ep]).iter().cloned());
 
@@ -204,12 +212,12 @@ impl MM {
                     let last_proof = previous_proof
                         .as_ref()
                         .expect("Error in decompressing proof, found unexpected Z");
-                    subproofs.push(Rc::clone(last_proof));
+                    subproofs.push(Arc::clone(last_proof));
                 }
                 Some(i) if *i < hyp_end => {
                     //mandatory hypothesis
                     let label = &labels[*i];
-                    let data = Rc::clone(&self.labels[label]);
+                    let data = Arc::clone(&self.labels[label]);
 
                     match data.deref() {
                         LabelEntry::DollarA(a) | LabelEntry::DollarP(a) => {
@@ -219,7 +227,7 @@ impl MM {
                         }
                         LabelEntry::DollarF(x) | LabelEntry::DollarE(x) => {
                             stack.push(x.clone());
-                            previous_proof = Some(Rc::clone(x))
+                            previous_proof = Some(Arc::clone(x))
                         }
                     }
                 }
@@ -229,7 +237,7 @@ impl MM {
 
                     let label_name = &labels[*i];
 
-                    let step_data = Rc::clone(&self.labels[label_name]);
+                    let step_data = Arc::clone(&self.labels[label_name]);
 
                     match step_data.deref() {
                         LabelEntry::DollarA(a) | LabelEntry::DollarP(a) => {
@@ -239,8 +247,8 @@ impl MM {
 
                         }
                         LabelEntry::DollarE(x) | LabelEntry::DollarF(x) => {
-                            previous_proof = Some(Rc::clone(x));
-                            stack.push(Rc::clone(x));
+                            previous_proof = Some(Arc::clone(x));
+                            stack.push(Arc::clone(x));
                         }
                     }
                 }
@@ -248,8 +256,8 @@ impl MM {
                 Some(i) if label_end <= *i => {
                     // no need to verify something already proved
                     let pf = &subproofs[(*i as usize) - label_end];
-                    stack.push(Rc::clone(pf));
-                    previous_proof = Some(Rc::clone(pf));
+                    stack.push(Arc::clone(pf));
+                    previous_proof = Some(Arc::clone(pf));
                 }
                 _ => {
                     panic!("Bad compression")
@@ -346,7 +354,7 @@ impl MM {
         }
 
         for (x, y) in distinct {
-            let x_vars = self.find_vars(Rc::clone(&subst[x]));
+            let x_vars = self.find_vars(Arc::clone(&subst[x]));
             let y_vars = self.find_vars(subst[y].clone());
             for x in &x_vars {
                 for y in &y_vars {
@@ -370,7 +378,7 @@ impl MM {
 
         stack.drain(stack.len() - npop..);
         let substituted = self.apply_subst(result, &subst);
-        stack.push(Rc::clone(&substituted));
+        stack.push(Arc::clone(&substituted));
         substituted
     }
 
@@ -388,7 +396,7 @@ impl MM {
         }
 
         for label in proof {
-            let stepdat = Rc::clone(&self.labels[&label]);
+            let stepdat = Arc::clone(&self.labels[&label]);
             // println!("{:?} : {:?}", label, self.labels[&label]);
 
             match stepdat.deref() {

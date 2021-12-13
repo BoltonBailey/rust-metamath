@@ -6,7 +6,7 @@ use crate::reader::Label;
 use crate::reader::LanguageToken;
 use crate::reader::Statement;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Frame {
     c: HashSet<LanguageToken>,
     v: HashSet<LanguageToken>,
@@ -17,7 +17,7 @@ pub struct Frame {
     e_labels: HashMap<Statement, Label>,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct FrameStack {
     pub list: Vec<Frame>,
 }

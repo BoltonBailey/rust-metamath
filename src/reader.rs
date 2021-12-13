@@ -2,7 +2,7 @@ use std::{
     collections::HashSet,
     fs::File,
     io::{BufRead, BufReader},
-    rc::Rc,
+    sync::Arc,
 };
 
 #[derive(Debug)]
@@ -13,12 +13,12 @@ pub struct Tokens {
 }
 
 //since statement may be used multiple times when applying substitution
-// use Rc
-pub type Statement = Rc<[LanguageToken]>; //may be better to newtype this but I guess it works for now
+// use Arc
+pub type Statement = Arc<[LanguageToken]>; //may be better to newtype this but I guess it works for now
 
 pub type Proof = Vec<Label>; //I don't think a proof is used multiple times
-pub type Label = Rc<str>;
-pub type LanguageToken = Rc<str>;
+pub type Label = Arc<str>;
+pub type LanguageToken = Arc<str>;
 
 impl Tokens {
     pub fn new(lines: BufReader<File>) -> Tokens {
@@ -103,7 +103,7 @@ impl Tokens {
     }
 
     pub fn readstat(&mut self) -> Statement {
-        let mut stat: Vec<Rc<str>> = vec![];
+        let mut stat: Vec<Arc<str>> = vec![];
         let mut token = self
             .read_comment()
             .expect("Failed to read token in read stat");
