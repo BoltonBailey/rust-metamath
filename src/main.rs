@@ -1,5 +1,6 @@
 mod framestack;
 mod reader;
+mod parse;
 use std::ops::Deref;
 
 use std::collections::HashMap;
