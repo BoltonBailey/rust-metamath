@@ -1,11 +1,9 @@
 
-
-
     use nom::{
   IResult,
-  bytes::complete::{tag, take_while_m_n},
+  bytes::complete::{tag, take_while_m_n, take_while, take_while1, take_till},
   combinator::map_res,
-  sequence::tuple};
+  sequence::{tuple, delimited}, character::{complete::none_of, is_alphanumeric, complete::{multispace0, multispace1}}, error::ParseError, multi::many0, branch::alt};
 
 
 // taken from Appendix E of the metamath language manual
@@ -70,7 +68,44 @@ fn from_hex(input: &str) -> Result<u8, std::num::ParseIntError> {
   u8::from_str_radix(input, 16)
 }
 
+fn is_printable_character(c: char) -> bool {
+  c >= (0x21 as char) && c <= (0x7e as char)
+}
 
-fn dollar_v(input: &str) -> IResult<&str, Keyword> {
-    todo!();
+fn printable_sequence(input: &str) -> IResult<&str, &str> {
+    take_while1(is_printable_character)(input)
+}
+fn math_symbol(input: &str) -> IResult<&str, MathSymbol> {
+    let (input, res) = delimited(white_space, take_while1(|c| is_printable_character(c) && c != '$'), white_space)(input)?;
+    Ok((input, res.to_string()))
+}
+
+fn label(input: &str) -> IResult<&str, Label> {
+    let (input, res) = delimited(white_space, take_while1(|c: char| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_'), white_space)(input)?;
+    Ok((input, res.to_string()))
+}
+
+fn compressed_proof_block(input: &str) -> IResult<&str, CompressedProofBlock> {
+    let (input, res) = delimited(white_space, take_while1(|c: char| c.is_ascii_uppercase() || c == '?'), white_space)(input)?;
+    Ok((input, res.to_string()))
+}
+
+fn white_space(input: &str) -> IResult<&str, Vec<String>> {
+    let (input, res) = many0(comment)(input)?;
+    Ok((input, res))
+}
+
+fn comment(input: &str) -> IResult<&str, String> {
+  let (input, res) = delimited(multispace0, delimited(tag("$("), many0(none_of("$")), tag("$)")), multispace0)(input)?;
+  Ok((input, res.iter().collect()))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+
+        assert_eq!(2 + 2, 4);
+
+    }
 }
