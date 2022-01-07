@@ -102,10 +102,56 @@ fn comment(input: &str) -> IResult<&str, String> {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn it_works() {
+    use crate::parse::{math_symbol, label};
 
-        assert_eq!(2 + 2, 4);
+    #[test]
+    fn comment_test1() {
+      let (input, res) = math_symbol("$( this is a comment $) abc123 12345").unwrap();
+
+
+        assert_eq!(res, "abc123");
+
+    }
+
+    #[test]
+    fn comment_test2() {
+      let (input, res) = math_symbol("$( this is a comment $) abc123 12345 $( abcdefgh anthontah n $)").unwrap();
+
+
+        assert_eq!(res, "abc123");
+
+    }
+    #[test]
+    fn comment_test3() {
+      let (input, res) = math_symbol("$( this is a comment $) $( anetohuant $) abc123 12345 $( abcdefgh anthontah n $)").unwrap();
+
+
+        assert_eq!(res, "abc123");
+
+    }
+    #[test]
+    fn comment_test4() {
+      let (input, res) = label("$( this is a comment $) abc123 12345").unwrap();
+
+
+        assert_eq!(res, "abc123");
+
+    }
+
+    #[test]
+    fn comment_test5() {
+      let (input, res) = label("$( this is a comment $) abc123 12345 $( abcdefgh anthontah n $)").unwrap();
+
+
+        assert_eq!(res, "abc123");
+
+    }
+    #[test]
+    fn comment_test6() {
+      let (input, res) = label("$( this is a comment $) $( anetohuant $) abc123 12345 $( abcdefgh anthontah n $)").unwrap();
+
+
+        assert_eq!(res, "abc123");
 
     }
 }
