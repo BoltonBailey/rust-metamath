@@ -2,7 +2,7 @@
     use nom::{
   IResult,
   bytes::complete::{tag, take_while_m_n, take_while, take_while1, take_till},
-  combinator::map_res,
+  combinator::{map_res, map},
   sequence::{tuple, delimited}, character::{complete::none_of, is_alphanumeric, complete::{multispace0, multispace1}}, error::ParseError, multi::{many0, many1}, branch::alt};
 
 
@@ -51,13 +51,13 @@ pub enum OutermostScopeStatement {
 }
 
 fn outermost_scope_stmt(input: &str) -> IResult<&str, OutermostScopeStatement> {
-  alt((include_stmt, constant_stmt, stmt))(input)
+  alt((include_stmt, constant_stmt, map(stmt, OutermostScopeStatement::Statement)))(input)
 }
 
 fn include_stmt(input: &str) -> IResult<&str, OutermostScopeStatement> {
-  let (input, _) = delimited(white_space, tag("$["), white_space)(input)?;
-  let (input, res) = delimited(white_space, take_while1(|c| is_printable_character(c) && c != '$' && !c.is_whitespace()), white_space)(input)?;
-  let (input, _) = delimited(white_space, tag("$["), white_space)(input)?;
+  let left = delimited(white_space, tag("$c"), white_space);
+  let right = delimited(white_space, tag("$."), white_space);
+  let (input, res) = delimited(left, take_while1(|c| is_printable_character(c) && c != '$' && !c.is_whitespace()), right)(input)?;
   Ok((input, OutermostScopeStatement::IncludeStatement(res.to_string())))
 }
 
@@ -69,10 +69,10 @@ fn constant_stmt(input: &str) -> IResult<&str, OutermostScopeStatement> {
 }
 
 
-
-fn stmt(input: &str) -> IResult<&str, OutermostScopeStatement> {
-  todo!()
+fn stmt(input: &str) -> IResult<&str, Statement> {
+  (alt((block, variable_stmt, disjoint_stmt, hypothesis_stmt, assert_stmt)))(input)
 }
+
 #[derive(Debug,PartialEq)]
 pub enum Statement {
     Block(Vec<Statement>),
@@ -81,6 +81,35 @@ pub enum Statement {
     HypothesisStatement(HypothesisStatement),
     AssertStatement(AssertStatement),
 }
+fn block(input: &str) -> IResult<&str, Statement> {
+  let left = delimited(white_space, tag("${"), white_space);
+  let right = delimited(white_space, tag("$}"), white_space);
+  let (input, res) = delimited(left, many0(stmt), right)(input)?;
+  Ok((input,  Statement::Block(res)))
+}
+fn variable_stmt(input: &str) -> IResult<&str, Statement> {
+  let left = delimited(white_space, tag("$v"), white_space);
+  let right = delimited(white_space, tag("$."), white_space);
+  let (input, res) = delimited(left, many1(math_symbol), right)(input)?;
+  Ok((input, Statement::VariableStatement(NonEmptyVec::new(res))))
+}
+fn disjoint_stmt(input: &str) -> IResult<&str, Statement> {
+  let left = delimited(white_space, tag("$d"), white_space);
+  let right = delimited(white_space, tag("$."), white_space);
+  let (input, mut res) = delimited(left, many1(math_symbol), right)(input)?;
+  let rest = res.drain(2..).collect();
+  let second = res.remove(1);
+  let first = res.remove(0);
+  Ok((input, Statement::DisjointStatement(first, second, rest)))
+}
+fn hypothesis_stmt(input: &str) -> IResult<&str, Statement> {
+  map(alt((floating_stmt, essential_stmt)), Statement::HypothesisStatement)(input)
+}
+fn assert_stmt(input: &str) -> IResult<&str, Statement> {
+  map(alt((axiom_stmt, provable_stmt)), Statement::AssertStatement)(input)
+}
+
+
 
 
 #[derive(Debug,PartialEq)]
@@ -89,6 +118,12 @@ pub enum HypothesisStatement {
     EssentialStatement(Label, TypeCode, Vec<MathSymbol>),
 }
 
+fn floating_stmt(input: &str) -> IResult<&str, HypothesisStatement> {
+  todo!()
+}
+fn essential_stmt(input: &str) -> IResult<&str, HypothesisStatement> {
+  todo!()
+}
 
 #[derive(Debug,PartialEq)]
 pub enum AssertStatement {
@@ -96,6 +131,12 @@ pub enum AssertStatement {
     ProvableStatement(Label, TypeCode, Vec<MathSymbol>, Proof),
 }
 
+fn axiom_stmt(input: &str) -> IResult<&str, AssertStatement> {
+  todo!()
+}
+fn provable_stmt(input: &str) -> IResult<&str, AssertStatement> {
+  todo!()
+}
 #[derive(Debug,PartialEq)]
 pub enum Proof {
     UncompressedProof(NonEmptyVec<Option<Label>>), // the option represents whether it is "?"
