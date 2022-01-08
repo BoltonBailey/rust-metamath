@@ -1,6 +1,6 @@
 mod framestack;
-mod reader;
 mod parse;
+mod reader;
 use std::ops::Deref;
 
 use std::collections::HashMap;
@@ -195,7 +195,6 @@ impl MM {
 
         let label_end = labels.len();
 
-
         let proof_indeces = Self::get_proof_indeces(compressed_proof);
         if proof_indeces.is_empty() {
             // we didn't do the proof yet
@@ -245,7 +244,6 @@ impl MM {
                             let prev_statement = self.verify_assertion(a, &mut stack);
 
                             previous_proof = Some(prev_statement);
-
                         }
                         LabelEntry::DollarE(x) | LabelEntry::DollarF(x) => {
                             previous_proof = Some(Arc::clone(x));
