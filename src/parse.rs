@@ -3,7 +3,7 @@
   IResult,
   bytes::complete::{tag, take_while_m_n, take_while, take_while1, take_till},
   combinator::map_res,
-  sequence::{tuple, delimited}, character::{complete::none_of, is_alphanumeric, complete::{multispace0, multispace1}}, error::ParseError, multi::many0, branch::alt};
+  sequence::{tuple, delimited}, character::{complete::none_of, is_alphanumeric, complete::{multispace0, multispace1}}, error::ParseError, multi::{many0, many1}, branch::alt};
 
 
 // taken from Appendix E of the metamath language manual
@@ -22,8 +22,26 @@ type CompressedProofBlock = String;
 #[derive(Debug,PartialEq)]
 pub struct NonEmptyVec<T>(T, Vec<T>);
 
+
+impl<T> NonEmptyVec<T> {
+
+  fn new(mut v: Vec<T>) -> NonEmptyVec<T> {
+    let drained = v.drain(1..).collect();
+    NonEmptyVec(v.remove(0), drained)
+  }
+
+}
+
 #[derive(Debug,PartialEq)]
 pub struct Database(Vec<OutermostScopeStatement>);
+
+fn database(input: &str) -> IResult<&str, Database> {
+  let (input, res) = many0(outermost_scope_stmt)(input)?;
+  Ok((input, Database(res)))
+}
+
+
+
 
 #[derive(Debug,PartialEq)]
 pub enum OutermostScopeStatement {
@@ -32,6 +50,29 @@ pub enum OutermostScopeStatement {
     Statement(Statement),
 }
 
+fn outermost_scope_stmt(input: &str) -> IResult<&str, OutermostScopeStatement> {
+  alt((include_stmt, constant_stmt, stmt))(input)
+}
+
+fn include_stmt(input: &str) -> IResult<&str, OutermostScopeStatement> {
+  let (input, _) = delimited(white_space, tag("$["), white_space)(input)?;
+  let (input, res) = delimited(white_space, take_while1(|c| is_printable_character(c) && c != '$' && !c.is_whitespace()), white_space)(input)?;
+  let (input, _) = delimited(white_space, tag("$["), white_space)(input)?;
+  Ok((input, OutermostScopeStatement::IncludeStatement(res.to_string())))
+}
+
+fn constant_stmt(input: &str) -> IResult<&str, OutermostScopeStatement> {
+  let left = delimited(white_space, tag("$c"), white_space);
+  let right = delimited(white_space, tag("$."), white_space);
+  let (input, res) = delimited(left, many1(math_symbol), right)(input)?;
+  Ok((input, OutermostScopeStatement::ConstantStatement(NonEmptyVec::new(res))))
+}
+
+
+
+fn stmt(input: &str) -> IResult<&str, OutermostScopeStatement> {
+  todo!()
+}
 #[derive(Debug,PartialEq)]
 pub enum Statement {
     Block(Vec<Statement>),
@@ -100,6 +141,8 @@ fn comment(input: &str) -> IResult<&str, String> {
   Ok((input, res.iter().collect()))
 }
 
+
+
 #[cfg(test)]
 mod tests {
     use crate::parse::{math_symbol, label};
@@ -153,5 +196,9 @@ mod tests {
 
         assert_eq!(res, "abc123");
 
+    }
+    #[test]
+    fn bad_label() {
+       assert!(label(">>5").is_err());
     }
 }
