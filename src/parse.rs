@@ -139,10 +139,20 @@ pub enum HypothesisStatement {
 }
 
 fn floating_stmt(input: &str) -> IResult<&str, HypothesisStatement> {
-    todo!()
+    let (input, label_tag) = label(input)?;
+    let left = delimited(white_space, tag("$f"), white_space);
+    let right = delimited(white_space, tag("$."), white_space);
+    let inside = tuple((math_symbol, math_symbol));
+    let (input, (typcode, rest)) = delimited(left, inside, right)(input)?;
+    Ok((input, HypothesisStatement::FloatingStatement(label_tag, typcode, rest)))
 }
 fn essential_stmt(input: &str) -> IResult<&str, HypothesisStatement> {
-    todo!()
+    let (input, label_tag) = label(input)?;
+    let left = delimited(white_space, tag("$e"), white_space);
+    let right = delimited(white_space, tag("$."), white_space);
+    let inside = tuple((math_symbol, many0(math_symbol)));
+    let (input, (typcode, rest)) = delimited(left, inside, right)(input)?;
+    Ok((input, HypothesisStatement::EssentialStatement(label_tag, typcode, rest)))
 }
 
 #[derive(Debug, PartialEq)]
@@ -152,10 +162,22 @@ pub enum AssertStatement {
 }
 
 fn axiom_stmt(input: &str) -> IResult<&str, AssertStatement> {
-    todo!()
+    let (input, label_tag) = label(input)?;
+    let left = delimited(white_space, tag("$a"), white_space);
+    let right = delimited(white_space, tag("$."), white_space);
+    let inside = tuple((math_symbol, many0(math_symbol)));
+    let (input, (typcode, rest)) = delimited(left, inside, right)(input)?;
+    Ok((input, AssertStatement::AxiomStatement(label_tag, typcode, rest)))
 }
 fn provable_stmt(input: &str) -> IResult<&str, AssertStatement> {
-    todo!()
+    let (input, label_tag) = label(input)?;
+    let (input, _) = delimited(white_space, tag("$p"), white_space)(input)?;
+    let (input, type_code) = math_symbol(input)?;
+    let (input, statement) = many0(math_symbol)(input)?;
+    let (input, _) = delimited(white_space, tag("$="), white_space)(input)?;
+    let (input, proof) = proof(input)?;
+    let (input, _) = delimited(white_space, tag("$."), white_space)(input)?;
+    Ok((input, AssertStatement::ProvableStatement(label_tag, type_code, statement, proof)))
 }
 #[derive(Debug, PartialEq)]
 pub enum Proof {
@@ -163,9 +185,16 @@ pub enum Proof {
     CompressedProof(Vec<Label>, NonEmptyVec<CompressedProofBlock>),
 }
 
-fn from_hex(input: &str) -> Result<u8, std::num::ParseIntError> {
-    u8::from_str_radix(input, 16)
+fn proof(input: &str) -> IResult<&str, Proof> {
+    (alt((uncompressed_proof, compressed_proof)))(input)
 }
+fn uncompressed_proof(input: &str) -> IResult<&str, Proof> {
+  todo!()
+}
+fn compressed_proof(input: &str) -> IResult<&str, Proof> {
+  todo!()
+}
+
 
 fn is_printable_character(c: char) -> bool {
     c >= (0x21 as char) && c <= (0x7e as char)
