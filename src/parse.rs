@@ -181,7 +181,7 @@ fn provable_stmt(input: &str) -> IResult<&str, AssertStatement> {
 }
 #[derive(Debug, PartialEq)]
 pub enum Proof {
-    UncompressedProof(NonEmptyVec<Option<Label>>), // the option represents whether it is "?"
+    UncompressedProof(NonEmptyVec<Label>),
     CompressedProof(Vec<Label>, NonEmptyVec<CompressedProofBlock>),
 }
 
@@ -189,7 +189,9 @@ fn proof(input: &str) -> IResult<&str, Proof> {
     (alt((uncompressed_proof, compressed_proof)))(input)
 }
 fn uncompressed_proof(input: &str) -> IResult<&str, Proof> {
-  todo!()
+    let question = map(tag("?"), |x: &str| x.to_string());
+    let (input, labels) = many0(alt((label, delimited(white_space, question, white_space))))(input)?;
+    Ok((input, Proof::UncompressedProof(NonEmptyVec::new(labels))))
 }
 fn compressed_proof(input: &str) -> IResult<&str, Proof> {
   todo!()
