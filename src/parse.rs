@@ -194,7 +194,11 @@ fn uncompressed_proof(input: &str) -> IResult<&str, Proof> {
     Ok((input, Proof::UncompressedProof(NonEmptyVec::new(labels))))
 }
 fn compressed_proof(input: &str) -> IResult<&str, Proof> {
-  todo!()
+    let (input, _) = delimited(white_space, tag("("), white_space)(input)?;
+    let (input, labels) = many0(label)(input)?;
+    let (input, _) = delimited(white_space, tag("("), white_space)(input)?;
+    let (input, compressed) = many0(compressed_proof_block)(input)?;
+    Ok((input, Proof::UncompressedProof(NonEmptyVec::new(labels))))
 }
 
 
