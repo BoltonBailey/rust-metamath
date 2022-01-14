@@ -1,4 +1,3 @@
-
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_till, take_while, take_while1, take_while_m_n},
@@ -144,7 +143,10 @@ fn floating_stmt(input: &str) -> IResult<&str, HypothesisStatement> {
     let right = delimited(white_space, tag("$."), white_space);
     let inside = tuple((math_symbol, math_symbol));
     let (input, (typcode, rest)) = delimited(left, inside, right)(input)?;
-    Ok((input, HypothesisStatement::FloatingStatement(label_tag, typcode, rest)))
+    Ok((
+        input,
+        HypothesisStatement::FloatingStatement(label_tag, typcode, rest),
+    ))
 }
 fn essential_stmt(input: &str) -> IResult<&str, HypothesisStatement> {
     let (input, label_tag) = label(input)?;
@@ -152,7 +154,10 @@ fn essential_stmt(input: &str) -> IResult<&str, HypothesisStatement> {
     let right = delimited(white_space, tag("$."), white_space);
     let inside = tuple((math_symbol, many0(math_symbol)));
     let (input, (typcode, rest)) = delimited(left, inside, right)(input)?;
-    Ok((input, HypothesisStatement::EssentialStatement(label_tag, typcode, rest)))
+    Ok((
+        input,
+        HypothesisStatement::EssentialStatement(label_tag, typcode, rest),
+    ))
 }
 
 #[derive(Debug, PartialEq)]
@@ -167,7 +172,10 @@ fn axiom_stmt(input: &str) -> IResult<&str, AssertStatement> {
     let right = delimited(white_space, tag("$."), white_space);
     let inside = tuple((math_symbol, many0(math_symbol)));
     let (input, (typcode, rest)) = delimited(left, inside, right)(input)?;
-    Ok((input, AssertStatement::AxiomStatement(label_tag, typcode, rest)))
+    Ok((
+        input,
+        AssertStatement::AxiomStatement(label_tag, typcode, rest),
+    ))
 }
 fn provable_stmt(input: &str) -> IResult<&str, AssertStatement> {
     let (input, label_tag) = label(input)?;
@@ -177,7 +185,10 @@ fn provable_stmt(input: &str) -> IResult<&str, AssertStatement> {
     let (input, _) = delimited(white_space, tag("$="), white_space)(input)?;
     let (input, proof) = proof(input)?;
     let (input, _) = delimited(white_space, tag("$."), white_space)(input)?;
-    Ok((input, AssertStatement::ProvableStatement(label_tag, type_code, statement, proof)))
+    Ok((
+        input,
+        AssertStatement::ProvableStatement(label_tag, type_code, statement, proof),
+    ))
 }
 #[derive(Debug, PartialEq)]
 pub enum Proof {
@@ -190,7 +201,8 @@ fn proof(input: &str) -> IResult<&str, Proof> {
 }
 fn uncompressed_proof(input: &str) -> IResult<&str, Proof> {
     let question = map(tag("?"), |x: &str| x.to_string());
-    let (input, labels) = many0(alt((label, delimited(white_space, question, white_space))))(input)?;
+    let (input, labels) =
+        many0(alt((label, delimited(white_space, question, white_space))))(input)?;
     Ok((input, Proof::UncompressedProof(NonEmptyVec::new(labels))))
 }
 fn compressed_proof(input: &str) -> IResult<&str, Proof> {
@@ -198,9 +210,11 @@ fn compressed_proof(input: &str) -> IResult<&str, Proof> {
     let (input, labels) = many0(label)(input)?;
     let (input, _) = delimited(white_space, tag("("), white_space)(input)?;
     let (input, compressed) = many0(compressed_proof_block)(input)?;
-    Ok((input, Proof::CompressedProof(labels, NonEmptyVec::new(compressed))))
+    Ok((
+        input,
+        Proof::CompressedProof(labels, NonEmptyVec::new(compressed)),
+    ))
 }
-
 
 fn is_printable_character(c: char) -> bool {
     c >= (0x21 as char) && c <= (0x7e as char)
@@ -253,9 +267,9 @@ fn comment(input: &str) -> IResult<&str, String> {
 
 #[cfg(test)]
 mod tests {
-    use nom::{multi::many1, sequence::delimited, bytes::complete::tag};
+    use nom::{bytes::complete::tag, multi::many1, sequence::delimited};
 
-    use crate::parse::{label, math_symbol, constant_stmt, white_space, database};
+    use crate::parse::{constant_stmt, database, label, math_symbol, white_space};
 
     use super::outermost_scope_stmt;
 
@@ -307,35 +321,25 @@ mod tests {
     }
     #[test]
     fn math_symbol_test1() {
-        let (input, res) = math_symbol(
-            "0 abc",
-        )
-        .unwrap();
+        let (input, res) = math_symbol("0 abc").unwrap();
 
         assert_eq!(res, "0");
     }
     #[test]
     fn math_symbol_test2() {
-        let (input, res) = math_symbol(
-            "$( 123 abc $) 0 abc",
-        )
-        .unwrap();
+        let (input, res) = math_symbol("$( 123 abc $) 0 abc").unwrap();
 
         assert_eq!(res, "0");
     }
     #[test]
     fn math_symbol_test3() {
-        let (input, res) = many1(math_symbol)(
-            "$( 123 abc $) 0 abc hi",
-        )
-        .unwrap();
+        let (input, res) = many1(math_symbol)("$( 123 abc $) 0 abc hi").unwrap();
 
         assert_eq!(res, vec!["0", "abc", "hi"]);
     }
     #[test]
     fn math_symbol_test4() {
-    let parse = many1(math_symbol)("0 0 0") ;
-
+        let parse = many1(math_symbol)("0 0 0");
 
         println!("{:?}", parse);
 
@@ -345,8 +349,7 @@ mod tests {
     }
     #[test]
     fn math_symbol_test5() {
-    let parse = many1(delimited(white_space, tag("0"), white_space))("0 0 0") ;
-
+        let parse = many1(delimited(white_space, tag("0"), white_space))("0 0 0");
 
         println!("{:?}", parse);
 
