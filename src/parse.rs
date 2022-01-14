@@ -255,7 +255,7 @@ fn comment(input: &str) -> IResult<&str, String> {
 mod tests {
     use nom::{multi::many1, sequence::delimited, bytes::complete::tag};
 
-    use crate::parse::{label, math_symbol, constant_stmt, white_space};
+    use crate::parse::{label, math_symbol, constant_stmt, white_space, database};
 
     use super::outermost_scope_stmt;
 
@@ -367,9 +367,6 @@ $v t r s P Q $.
 $( Specify properties of the metavariables $)
 tt $f term t $.
 tr $f term r $.
-5 Some authors make this implied rule explicit by stating, “only expressions of the
-above form are terms,” after defining “term.”42
-CHAPTER 2. USING THE METAMATH PROGRAM
 ts $f term s $.
 wp $f wff P $.
 wq $f wff Q $.
@@ -394,9 +391,10 @@ tt tze tpl tt weq tt tt weq tt a2 tt tze tpl
 tt weq tt tze tpl tt weq tt tt weq wim tt a2
 tt tze tpl tt tt a1 mp mp
 $."#;
-        let parse = outermost_scope_stmt(s);
+        let parse = database(s);
         println!("{:?}", parse);
         assert!(parse.is_ok());
+        assert_eq!(parse.unwrap().0, "");
     }
     #[test]
     fn metamath_first_proof_constant_statement() {
