@@ -1,13 +1,11 @@
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_till, take_while, take_while1, take_while_m_n},
+    bytes::complete::{tag, take_while1},
     character::{
         complete::none_of,
-        complete::{multispace0, multispace1},
-        is_alphanumeric,
+        complete::{multispace0},
     },
-    combinator::{map, map_res},
-    error::ParseError,
+    combinator::{map},
     multi::{many0, many1},
     sequence::{delimited, tuple},
     IResult,
@@ -271,25 +269,25 @@ mod tests {
 
     use crate::parse::{constant_stmt, database, label, math_symbol, white_space};
 
-    use super::outermost_scope_stmt;
+    
 
     #[test]
     fn comment_test1() {
-        let (input, res) = math_symbol("$( this is a comment $) abc123 12345").unwrap();
+        let (_input, res) = math_symbol("$( this is a comment $) abc123 12345").unwrap();
 
         assert_eq!(res, "abc123");
     }
 
     #[test]
     fn comment_test2() {
-        let (input, res) =
+        let (_input, res) =
             math_symbol("$( this is a comment $) abc123 12345 $( abcdefgh anthontah n $)").unwrap();
 
         assert_eq!(res, "abc123");
     }
     #[test]
     fn comment_test3() {
-        let (input, res) = math_symbol(
+        let (_input, res) = math_symbol(
             "$( this is a comment $) $( anetohuant $) abc123 12345 $( abcdefgh anthontah n $)",
         )
         .unwrap();
@@ -298,21 +296,21 @@ mod tests {
     }
     #[test]
     fn comment_test4() {
-        let (input, res) = label("$( this is a comment $) abc123 12345").unwrap();
+        let (_input, res) = label("$( this is a comment $) abc123 12345").unwrap();
 
         assert_eq!(res, "abc123");
     }
 
     #[test]
     fn comment_test5() {
-        let (input, res) =
+        let (_input, res) =
             label("$( this is a comment $) abc123 12345 $( abcdefgh anthontah n $)").unwrap();
 
         assert_eq!(res, "abc123");
     }
     #[test]
     fn comment_test6() {
-        let (input, res) = label(
+        let (_input, res) = label(
             "$( this is a comment $) $( anetohuant $) abc123 12345 $( abcdefgh anthontah n $)",
         )
         .unwrap();
@@ -321,19 +319,19 @@ mod tests {
     }
     #[test]
     fn math_symbol_test1() {
-        let (input, res) = math_symbol("0 abc").unwrap();
+        let (_input, res) = math_symbol("0 abc").unwrap();
 
         assert_eq!(res, "0");
     }
     #[test]
     fn math_symbol_test2() {
-        let (input, res) = math_symbol("$( 123 abc $) 0 abc").unwrap();
+        let (_input, res) = math_symbol("$( 123 abc $) 0 abc").unwrap();
 
         assert_eq!(res, "0");
     }
     #[test]
     fn math_symbol_test3() {
-        let (input, res) = many1(math_symbol)("$( 123 abc $) 0 abc hi").unwrap();
+        let (_input, res) = many1(math_symbol)("$( 123 abc $) 0 abc hi").unwrap();
 
         assert_eq!(res, vec!["0", "abc", "hi"]);
     }
