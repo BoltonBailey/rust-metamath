@@ -198,7 +198,7 @@ fn compressed_proof(input: &str) -> IResult<&str, Proof> {
     let (input, labels) = many0(label)(input)?;
     let (input, _) = delimited(white_space, tag("("), white_space)(input)?;
     let (input, compressed) = many0(compressed_proof_block)(input)?;
-    Ok((input, Proof::UncompressedProof(NonEmptyVec::new(labels))))
+    Ok((input, Proof::CompressedProof(labels, NonEmptyVec::new(compressed))))
 }
 
 
@@ -237,6 +237,7 @@ fn compressed_proof_block(input: &str) -> IResult<&str, CompressedProofBlock> {
 }
 
 fn white_space(input: &str) -> IResult<&str, Vec<String>> {
+    let (input, _) = multispace0(input)?;
     let (input, res) = many0(comment)(input)?;
     Ok((input, res))
 }
@@ -252,7 +253,11 @@ fn comment(input: &str) -> IResult<&str, String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::{label, math_symbol};
+    use nom::{multi::many1, sequence::delimited, bytes::complete::tag};
+
+    use crate::parse::{label, math_symbol, constant_stmt, white_space};
+
+    use super::outermost_scope_stmt;
 
     #[test]
     fn comment_test1() {
@@ -301,7 +306,121 @@ mod tests {
         assert_eq!(res, "abc123");
     }
     #[test]
+    fn math_symbol_test1() {
+        let (input, res) = math_symbol(
+            "0 abc",
+        )
+        .unwrap();
+
+        assert_eq!(res, "0");
+    }
+    #[test]
+    fn math_symbol_test2() {
+        let (input, res) = math_symbol(
+            "$( 123 abc $) 0 abc",
+        )
+        .unwrap();
+
+        assert_eq!(res, "0");
+    }
+    #[test]
+    fn math_symbol_test3() {
+        let (input, res) = many1(math_symbol)(
+            "$( 123 abc $) 0 abc hi",
+        )
+        .unwrap();
+
+        assert_eq!(res, vec!["0", "abc", "hi"]);
+    }
+    #[test]
+    fn math_symbol_test4() {
+    let parse = many1(math_symbol)("0 0 0") ;
+
+
+        println!("{:?}", parse);
+
+        let (_, res) = parse.unwrap();
+
+        assert_eq!(res, vec!["0", "0", "0"]);
+    }
+    #[test]
+    fn math_symbol_test5() {
+    let parse = many1(delimited(white_space, tag("0"), white_space))("0 0 0") ;
+
+
+        println!("{:?}", parse);
+
+        let (_, res) = parse.unwrap();
+
+        assert_eq!(res, vec!["0", "0", "0"]);
+    }
+    #[test]
     fn bad_label() {
         assert!(label(">>5").is_err());
+    }
+    #[test]
+    fn metamath_first_proof() {
+        let s = r#"$( Declare the constant symbols we will use $)
+$c 0 + = -> ( ) term wff |- $.
+$( Declare the metavariables we will use $)
+$v t r s P Q $.
+$( Specify properties of the metavariables $)
+tt $f term t $.
+tr $f term r $.
+5 Some authors make this implied rule explicit by stating, “only expressions of the
+above form are terms,” after defining “term.”42
+CHAPTER 2. USING THE METAMATH PROGRAM
+ts $f term s $.
+wp $f wff P $.
+wq $f wff Q $.
+$( Define "term" and "wff" $)
+tze $a term 0 $.
+tpl $a term ( t + r ) $.
+weq $a wff t = r $.
+wim $a wff ( P -> Q ) $.
+$( State the axioms $)
+a1 $a |- ( t = r -> ( t = s -> r = s ) ) $.
+a2 $a |- ( t + 0 ) = t $.
+$( Define the modus ponens inference rule $)
+${
+min $e |- P $.
+maj $e |- ( P -> Q ) $.
+mp $a |- Q $.
+$}
+$( Prove a theorem $)
+th1 $p |- t = t $=
+$( Here is its proof: $)
+tt tze tpl tt weq tt tt weq tt a2 tt tze tpl
+tt weq tt tze tpl tt weq tt tt weq wim tt a2
+tt tze tpl tt tt a1 mp mp
+$."#;
+        let parse = outermost_scope_stmt(s);
+        println!("{:?}", parse);
+        assert!(parse.is_ok());
+    }
+    #[test]
+    fn metamath_first_proof_constant_statement() {
+        let s = r#"$( Declare the constant symbols we will use $)
+$c 0 + = -> ( ) term wff |- $.
+$( Declare the metavariables we will use $)"#;
+        let parse = constant_stmt(s);
+        println!("{:?}", parse);
+        assert!(parse.is_ok());
+    }
+    #[test]
+    fn metamath_first_proof_many_math_symbols() {
+        let s = r#" 0 + = -> ( ) term wff |- $.
+$( Declare the metavariables we will use $)"#;
+        let parse = many1(math_symbol)(s);
+        println!("{:?}", parse);
+        assert!(parse.is_ok());
+    }
+    #[test]
+    fn metamath_first_proof_many_math_symbols_but_less() {
+        let s = r#" 0
+$( Declare the metavariables we will use $)"#;
+        let parse = many1(math_symbol)(s);
+        println!("{:?}", parse);
+        assert!(parse.is_ok());
     }
 }
