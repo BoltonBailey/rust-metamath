@@ -1,10 +1,30 @@
 use std::{
     collections::HashSet,
-    fs::File,
+    fs::{File, read_to_string},
     io::{BufRead, BufReader},
-    sync::Arc,
+    sync::Arc, slice,
 };
 
+use crate::parse::{Database, OutermostScopeStatement};
+
+pub fn create_from_path(path: String) -> Option<Database> {
+
+
+    let string = read_to_string(path).ok()?;
+
+    let db  =  Database::new(&string)?;
+
+    let includes = db.get_vec().into_iter().flat_map(|x| {
+        match x {
+            OutermostScopeStatement::IncludeStatement(import) => create_from_path(import.to_string()).unwrap().get_vec(),
+            x => vec![x],
+        }
+    });
+
+
+
+    todo!()
+}
 #[derive(Debug)]
 pub struct Tokens {
     lines_buffer: Vec<BufReader<File>>,

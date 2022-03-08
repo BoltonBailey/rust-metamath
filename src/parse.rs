@@ -36,6 +36,23 @@ impl<T> NonEmptyVec<T> {
 #[derive(Debug, PartialEq)]
 pub struct Database(Vec<OutermostScopeStatement>);
 
+
+impl Database {
+    pub fn new(input: &str) -> Option<Database> {
+        let (input, res) = database(input).ok()?;
+        if input == "" {
+            Some(res)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_vec(self) -> Vec<OutermostScopeStatement> {
+        let Database(v) = self;
+        v
+    }
+}
+
 fn database(input: &str) -> IResult<&str, Database> {
     let (input, res) = many0(outermost_scope_stmt)(input)?;
     Ok((input, Database(res)))
