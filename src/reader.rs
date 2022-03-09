@@ -22,11 +22,11 @@ fn get_outer_statements_from_path(path: String) -> Option<Vec<OutermostScopeStat
     });
 
 
-    let rec = vec!();
+    let mut rec = vec!();
 
     for x in includes {
         match x {
-            Some(x) => rec.append(x),
+            Some(mut z) => rec.append(&mut z),
             None => return None,
         }
     }
