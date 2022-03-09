@@ -150,3 +150,15 @@ impl Tokens {
         stat.into()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::reader::create_from_path;
+
+    #[test]
+    fn test_load_set() {
+        let x = create_from_path("~/Downloads/set.mm".to_string());
+
+        assert!(x.is_some());
+    }
+}
