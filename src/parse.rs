@@ -34,7 +34,7 @@ impl<T> NonEmptyVec<T> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Database(Vec<OutermostScopeStatement>);
+pub struct Database(pub Vec<OutermostScopeStatement>);
 
 
 impl Database {

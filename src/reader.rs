@@ -7,23 +7,37 @@ use std::{
 
 use crate::parse::{Database, OutermostScopeStatement};
 
-pub fn create_from_path(path: String) -> Option<Database> {
 
+fn get_outer_statements_from_path(path: String) -> Option<Vec<OutermostScopeStatement>> {
 
     let string = read_to_string(path).ok()?;
 
     let db  =  Database::new(&string)?;
 
-    let includes = db.get_vec().into_iter().flat_map(|x| {
+    let includes = db.get_vec().into_iter().map(|x| {
         match x {
-            OutermostScopeStatement::IncludeStatement(import) => create_from_path(import.to_string()).unwrap().get_vec(),
-            x => vec![x],
+            OutermostScopeStatement::IncludeStatement(import) => get_outer_statements_from_path(import.to_string()),
+            x => Some(vec!(x)),
         }
     });
 
 
+    let rec = vec!();
 
-    todo!()
+    for x in includes {
+        match x {
+            Some(x) => rec.append(x),
+            None => return None,
+        }
+    }
+    Some(rec)
+}
+
+pub fn create_from_path(path: String) -> Option<Database> {
+    get_outer_statements_from_path(path).map(|x|
+                                             Database(x)
+    )
+
 }
 #[derive(Debug)]
 pub struct Tokens {
