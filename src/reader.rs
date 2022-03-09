@@ -10,7 +10,14 @@ use crate::parse::{Database, OutermostScopeStatement};
 
 fn get_outer_statements_from_path(path: String) -> Option<Vec<OutermostScopeStatement>> {
 
-    let string = read_to_string(path).ok()?;
+    let string_option = read_to_string(path);
+
+    println!("current of this is something");
+
+    let string = string_option.ok()?;
+
+    println!("it was ok");
+
 
     let db  =  Database::new(&string)?;
 
@@ -153,12 +160,25 @@ impl Tokens {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::{File, read_to_string};
+
     use crate::reader::create_from_path;
 
     #[test]
     fn test_load_set() {
-        let x = create_from_path("~/Downloads/set.mm".to_string());
+        let x = create_from_path("../../Downloads/set.mm".to_string());
 
+        println!("{:?}", x);
         assert!(x.is_some());
+
+    }
+
+    #[test]
+    fn random_test() {
+        let string = read_to_string("../../test.txt");
+
+
+        assert!(string.is_ok());
+
     }
 }
