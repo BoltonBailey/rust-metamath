@@ -1,9 +1,9 @@
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_while1},
+    bytes::streaming::{tag, take_while1, take_while},
     character::{
-        complete::none_of,
-        complete::{multispace0},
+        streaming::none_of,
+        streaming::{multispace0},
     },
     combinator::{map},
     multi::{many0, many1},
@@ -271,6 +271,8 @@ fn white_space(input: &str) -> IResult<&str, Vec<String>> {
     Ok((input, res))
 }
 
+
+
 fn comment(input: &str) -> IResult<&str, String> {
     let (input, res) = delimited(
         multispace0,
@@ -279,6 +281,22 @@ fn comment(input: &str) -> IResult<&str, String> {
     )(input)?;
     Ok((input, res.iter().collect()))
 }
+
+
+fn read_no_ws(input: &str) -> IResult<&str, String> {
+    let (input, _) = multispace0(input)?;
+    let (input, res) = printable_sequence(input)?;
+    let (input, _) = multispace0(input)?;
+    Ok((input, res.into()))
+}
+
+
+fn read_no_comment(input: &str) -> IResult<&str, String> {
+    let (input, token) = read_no_ws(input)?;
+    Ok((input, res.into()))
+}
+
+
 
 #[cfg(test)]
 mod tests {
