@@ -1,6 +1,6 @@
 use nom::{
     branch::alt,
-    bytes::streaming::{tag, take_while1, take_while},
+    bytes::streaming::{tag, take_while1, take_while, take_until},
     character::{
         streaming::none_of,
         streaming::{multispace0},
@@ -293,7 +293,13 @@ fn read_no_ws(input: &str) -> IResult<&str, String> {
 
 fn read_no_comment(input: &str) -> IResult<&str, String> {
     let (input, token) = read_no_ws(input)?;
-    Ok((input, res.into()))
+    if token.as_str() == "$(" {
+        let (input, token) = take_until("$)")(input)?;
+        read_no_ws(input)
+    } else {
+        Ok((input, token))
+
+    }
 }
 
 
