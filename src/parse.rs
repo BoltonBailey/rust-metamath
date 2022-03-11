@@ -74,8 +74,8 @@ fn outermost_scope_stmt(input: &str) -> IResult<&str, OutermostScopeStatement> {
 }
 
 fn include_stmt(input: &str) -> IResult<&str, OutermostScopeStatement> {
-    let left = delimited(white_space, tag("$c"), white_space);
-    let right = delimited(white_space, tag("$."), white_space);
+    let left = delimited(white_space, tag("$["), white_space);
+    let right = delimited(white_space, tag("$]"), white_space);
     let (input, res) = delimited(
         left,
         take_while1(|c| is_printable_character(c) && c != '$' && !c.is_whitespace()),
@@ -276,7 +276,7 @@ fn white_space(input: &str) -> IResult<&str, Vec<String>> {
 fn comment(input: &str) -> IResult<&str, String> {
     let (input, res) = delimited(
         multispace0,
-        delimited(tag("$("), many0(none_of("$")), tag("$)")),
+        delimited(tag("$("), many0(none_of("$)")), tag("$)")),
         multispace0,
     )(input)?;
     Ok((input, res.iter().collect()))
@@ -472,9 +472,48 @@ $( Declare the metavariables we will use $)"#;
 
         let string = string.expect("failed to open file");
 
-        let parse = database(&string);
+        let (rest, parse) = database(&string).expect("Failed to parse");
 
-        assert!(parse.is_ok())
+
+
+        println!("{:?}", &rest[0..500]);
+
+        assert!(rest.len() == 0);
     }
 
+    #[test]
+    fn parse_setmm_comments_short() {
+        let string = read_to_string("mm/short_comments.mm");
+
+
+        let string = string.expect("failed to open file");
+
+        let (rest, parse) = database(&string).expect("Failed to parse");
+
+
+        assert!(rest.len() == 0);
+
+
+    }
+    const set_mm_path: &str = "../set.mm/set.mm";
+
+    #[test]
+    fn parse_set_mm() {
+        let string = read_to_string(set_mm_path);
+
+
+        let string = string.expect("failed to open file");
+
+        let (rest, parse) = database(&string).expect("Failed to parse");
+
+
+
+        println!("{:?}", parse);
+        println!("{:?}", &rest[0..500]);
+
+
+
+
+        panic!()
+    }
 }

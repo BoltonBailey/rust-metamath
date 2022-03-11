@@ -165,6 +165,7 @@ mod tests {
     use crate::reader::create_from_path;
 
     #[test]
+    #[ignore]
     fn test_load_set() {
         let x = create_from_path("../../Downloads/set.mm".to_string());
 
@@ -174,6 +175,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn random_test() {
         let string = read_to_string("../../test.txt");
 

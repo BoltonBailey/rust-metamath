@@ -12353,3 +12353,5 @@ $(
   defining the basics of logic.
 
 $)
+
+$c hi $.
