@@ -1,9 +1,9 @@
 use nom::{
     branch::alt,
-    bytes::streaming::{tag, take_while1, take_while, take_until},
+    bytes::complete::{tag, take_while1, take_while, take_until},
     character::{
-        streaming::none_of,
-        streaming::{multispace0},
+        complete::none_of,
+        complete::{multispace0},
     },
     combinator::{map},
     multi::{many0, many1},
@@ -298,7 +298,6 @@ fn read_no_comment(input: &str) -> IResult<&str, String> {
         read_no_ws(input)
     } else {
         Ok((input, token))
-
     }
 }
 
@@ -306,6 +305,8 @@ fn read_no_comment(input: &str) -> IResult<&str, String> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::read_to_string;
+
     use nom::{bytes::complete::tag, multi::many1, sequence::delimited};
 
     use crate::parse::{constant_stmt, database, label, math_symbol, white_space};
@@ -463,4 +464,17 @@ $( Declare the metavariables we will use $)"#;
         println!("{:?}", parse);
         assert!(parse.is_ok());
     }
+
+    #[test]
+    fn parse_setmm_comments() {
+        let string = read_to_string("mm/set_comments.mm");
+
+
+        let string = string.expect("failed to open file");
+
+        let parse = database(&string);
+
+        assert!(parse.is_ok())
+    }
+
 }
