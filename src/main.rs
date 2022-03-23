@@ -7,7 +7,7 @@ use std::io::BufReader;
 
 use crate::database::MM;
 use crate::reader::Tokens;
-use crate::stupid::test;
+use crate::stupid::verify_file;
 
 // first one is label type,
 
@@ -17,14 +17,15 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     // println!("Got cmd argumnets {:?}", args);
+    let file_name = args[1].clone();
 
     let is_stupid = args.get(2).map(|x| x == "-stupid").is_some();
     if is_stupid {
-        test();
+        verify_file(&file_name);
     } else {
         let mut mm = MM::new(args.get(2).cloned(), args.get(3).cloned());
 
-        let file = File::open(args[1].clone()).expect("Failed to find file");
+        let file = File::open(file_name).expect("Failed to find file");
 
     // println!("Found file name {:?}", args[1]);
         use std::time::Instant;
