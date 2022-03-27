@@ -42,16 +42,47 @@ impl Reader {
         true
     }
 
+    fn get_next_token_raw(&mut self) -> Option<Token> {
+        self.refill_current_line();
+        self.current_line.pop_front()
+    }
 
+
+    /// ignores comments and auto importrs files
     fn get_next_token(&mut self) -> Option<Token> {
 
-        let has_more = self.refill_current_line();
-
-        let mut token = self.current_line.pop_front();
+        let mut token = self.get_next_token_raw();
 
         match token {
+            Some(x) if x.as_ref() == "$(" => loop {
+                match self.get_next_token_raw() {
+                    Some(x) if "$)" == x.as_ref() => return self.get_next_token(),
+                    _ => {},
+                }
+            }
+            Some(x) if x.as_ref() == "$[" => {
+                let filename = self.get_next_token_raw().expect("Couldn't find filename");
+                let endbracket = self.get_next_token_raw().expect("Coludn't find end bracket");
 
+                // println!("In read file found filename: {:?}, endbracket: {:?}", filename, endbracket);
+                if endbracket.as_ref() != "$]" {
+                    panic!("End bracket not found");
+                }
+
+                if !self.imported_files.contains(filename.as_ref()) {
+                    // println!("Found new file {}", &filename);
+                    self.open_buffers.push(BufReader::new(
+                        File::open(filename.as_ref()).expect("Failed to open file"),
+                    ));
+                    self.imported_files.insert(filename.as_ref().into());
+                }
+                return self.get_next_token();
+            }
+            x => return x,
         }
+    }
 
+    fn read_statement(&self) -> Statement {
+        todo!()
     }
 }
