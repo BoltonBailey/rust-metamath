@@ -1,4 +1,4 @@
-use std::{io::{BufReader, Read, BufRead}, fs::File, collections::{HashSet, VecDeque}, slice::SliceIndex, rc::Rc};
+use std::{io::{BufReader, Read, BufRead}, fs::File, collections::{HashSet, VecDeque, HashMap}, slice::SliceIndex, rc::Rc};
 
 
 
@@ -85,4 +85,43 @@ impl Reader {
     fn read_statement(&self) -> Statement {
         todo!()
     }
+}
+type Tokens = Rc<[Token]>;
+type MathStatement = Tokens;
+type Label = Token;
+struct Constant(Token);
+struct Variable(Token);
+struct Disjoint((Token, Token));
+struct Floating {
+    sort: Token,
+    token: Token,
+    label: Label,
+}
+struct Essential {
+    statement: MathStatement,
+    sort: Token,
+    label: Label,
+}
+struct Axiom {
+    statement: MathStatement,
+    sort: Token,
+    label: Label,
+}
+struct Proof {
+    statement: MathStatement,
+    sort: Token,
+    proof: Tokens,
+    label: Label,
+}
+/// THins to parse inot
+enum Statement {
+    ScopeEnd,
+    Constant(Vec<Constant>),
+    Variable(Vec<Variable>),
+    Floating(Floating),
+    Axiom(Axiom),
+    Essential(Essential),
+    Proof(Proof),
+    Disjoint(Vec<Disjoint>),
+    ScopeBegin,
 }
