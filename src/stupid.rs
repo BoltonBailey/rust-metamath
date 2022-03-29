@@ -1,4 +1,4 @@
-use std::{io::{BufReader, Read, BufRead}, fs::File, collections::{HashSet, VecDeque, HashMap}, slice::SliceIndex, rc::Rc};
+use std::{io::{BufReader, Read, BufRead}, fs::File, collections::{HashSet, VecDeque, HashMap}, slice::SliceIndex, rc::Rc, cmp::{min, max}};
 
 
 
@@ -15,6 +15,23 @@ struct Reader {
     open_buffers: Vec<BufReader<File>>,
     imported_files: HashSet<String>,
     current_line: VecDeque<Token>
+}
+
+/// almost does the caresian product
+fn self_cartesian_product(variables: Tokens) -> Vec<(Token, Token)>{
+
+    let mut ret = vec![];
+        for x in variables.iter() {
+            for y in variables.iter() {
+                if x != y {
+                    let min = min(&x, &y);
+                    let max = max(&x, &y);
+                    ret.push((Rc::clone(*min), Rc::clone(*max)))
+                }
+            }
+        }
+
+    ret
 }
 
 impl Reader {
@@ -82,10 +99,95 @@ impl Reader {
         }
     }
 
-    fn read_statement(&self) -> Statement {
+    fn read_to_period(&mut self) -> Tokens {
+        let mut stat: Vec<Rc<str>> = vec![];
+        let mut token = self.get_next_token()
+            .expect("Failed to read token");
+        while token.as_ref() != "$." {
+            stat.push(token.into());
+            token = self.get_next_token().expect("EOF before $.");
+        }
+        stat.into()
+    }
+
+    fn get_statement(&mut self) -> Option<Statement> {
+        let token = self.get_next_token();
+
+        let statement = match token.as_deref() {
+            Some("$}") => Statement::ScopeEnd,
+            Some("$c") => Statement::Constant( self.read_to_period().iter().map(|x| Constant(Rc::clone(x))).collect()),
+            Some("$v") => Statement::Variable( self.read_to_period().iter().map(|x| Variable(Rc::clone(x))).collect()),
+
+            Some("$d") => {
+
+                let variables = self.read_to_period();
+                let disjoints = self_cartesian_product(variables).into_iter().map(|x| Disjoint(x)).collect();
+
+                Statement::Disjoint(disjoints)
+            }
+            Some("$}") => Statement::ScopeEnd,
+            None => {
+                return None;
+            },
+            Some(label) => match self.get_next_token().as_deref() {
+
+                Some("$f") => {
+                    match &self.read_to_period()[..] {
+                        [label, sort, token] => Statement::Floating(Floating {
+                            label: Rc::clone(label),
+                            sort: Rc::clone(sort),
+                            token: Rc::clone(token),
+                        }),
+                        _ => panic!("Incorrect syntax for floating")
+                    }
+                }
+                Some("$a") => {
+                    let sort = self.get_next_token().expect("Could not find first token");
+                    let statement = self.read_to_period();
+
+                    Statement::Axiom(Axiom {
+                        statement,
+                        sort,
+                        label: label.into(),
+                    })
+                }
+                Some("$e") => {
+                    let sort = self.get_next_token().expect("Could not find first variable for ");
+                    let statement = self.read_to_period();
+
+                    Statement::Essential(Essential {
+                        statement,
+                        sort,
+                        label: label.into(),
+                    })
+                }
+                Some("$p") => {
+                    let sort = self.get_next_token().expect("Could not find first variable for ");
+                    let statement_and_proof = self.read_to_period();
+                    let split: Vec<_> = statement_and_proof.split(|x| x.as_ref() == "$=").collect();
+
+                    match &split[..] {
+                        [statement, proof] =>
+                    Statement::Proof(Proof {
+                        statement: Rc::from(*statement),
+                        sort,
+                        label: label.into(),
+                        proof: Rc::from(*proof),
+                    }),
+                        _ => panic!("Too many $="),
+                    }
+
+                }
+                _ => todo!()
+
+            },
+        };
         todo!()
     }
 }
+
+
+
 type Tokens = Rc<[Token]>;
 type MathStatement = Tokens;
 type Label = Token;
