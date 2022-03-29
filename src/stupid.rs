@@ -4,7 +4,7 @@ use std::{
     fs::File,
     io::{BufRead, BufReader, Read},
     rc::Rc,
-    slice::{SliceIndex, },
+    slice::{SliceIndex, }, iter::FromIterator,
 };
 
 pub fn verify_file(file_name: &str) {
@@ -250,10 +250,19 @@ impl FrameStack {
                 frame.floating.push(floating);
 
             },
-            Statement::Axiom(_) => todo!(),
-            Statement::Essential(_) => todo!(),
+            Statement::Axiom(axiom) => {
+
+            },
+            Statement::Essential(essential) => {
+                let frame = self.frames.last_mut().expect("Failed to find frame");
+                frame.essential.push(essential);
+            },
             Statement::Proof(_) => todo!(),
-            Statement::Disjoint(_) => todo!(),
+            Statement::Disjoint(disjoints) => {
+                let frame = self.frames.last_mut().expect("Failed to find frame");
+                let disjoint_set : HashSet<Disjoint> = HashSet::from_iter(disjoints.into_iter());
+                frame.disjoint.extend(disjoint_set);
+            },
             Statement::ScopeBegin => todo!(),
         };
     }
@@ -300,6 +309,7 @@ struct Constant(Token);
 
 #[derive(Eq, Hash, PartialEq)]
 struct Variable(Token);
+#[derive(Eq, Hash, PartialEq)]
 struct Disjoint((Token, Token));
 struct Floating {
     sort: Token,
@@ -341,4 +351,5 @@ pub struct Frame {
     variables: HashSet<Variable>,
     floating: Vec<Floating>,
     essential: Vec<Essential>,
+    disjoint: HashSet<Disjoint>,
 }
