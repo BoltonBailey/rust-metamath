@@ -274,6 +274,23 @@ impl FrameStack {
     fn lookup_variable(&self, variable: &Token) -> bool {
         self.frames.iter().rev().any(|fr| fr.variables.contains(&Variable(Rc::clone(variable))))
     }
+
+    fn lookup_floating(&self, variable: &Token) -> Label {
+        let frame = self
+            .frames
+            .iter()
+            .rev()
+            .find(|frame| frame.floating.iter().any(|floating| &floating.token == variable))
+            .expect("Could not find floating token");
+
+        todo!()
+    }
+    pub fn lookup_d(&self, x: Token, y: Token) -> bool {
+        todo!()
+    }
+    pub fn lookup_e(&self, stmt: Statement) -> Label {
+        todo!()
+    }
 }
 
 enum LabelEntry {
@@ -311,6 +328,8 @@ struct Constant(Token);
 struct Variable(Token);
 #[derive(Eq, Hash, PartialEq)]
 struct Disjoint((Token, Token));
+
+#[derive(Eq, Hash, PartialEq)]
 struct Floating {
     sort: Token,
     token: Token,
