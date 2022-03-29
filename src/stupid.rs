@@ -4,7 +4,7 @@ use std::{
     fs::File,
     io::{BufRead, BufReader, Read},
     rc::Rc,
-    slice::SliceIndex,
+    slice::{SliceIndex, },
 };
 
 pub fn verify_file(file_name: &str) {
@@ -187,20 +187,83 @@ impl Reader {
                         _ => panic!("Too many $="),
                     }
                 }
-                _ => todo!(),
+                _ => {
+                    panic!("Error after reading label {}", label)
+                },
             },
         };
-        todo!()
+        Some(statement)
     }
 }
 
 pub struct FrameStack {
-    list: Vec<Frame>,
+    frames: Vec<Frame>,
 }
 
 impl FrameStack {
-    fn add_statement(statement: Statement) {
-        todo!();
+    fn add_statement(&mut self, statement: Statement) {
+        match statement {
+            Statement::ScopeEnd => {
+                self.frames.pop();
+            },
+            Statement::Constant(constants) => {
+                let frame = self.frames.last_mut().expect("Failed to find frame");
+                for token in constants {
+                    let Constant(token) = token;
+                    if frame.constants.contains(&Constant(Rc::clone(&token))) {
+                        panic!("Tried to add {} as constant, but was already declared as a Constant", token)
+                    }
+                    if frame.variables.contains(&Variable(Rc::clone(&token))) {
+                        panic!("Tried to add {} as constant, but was already declared as a variable", token)
+                    }
+                    frame.constants.insert(Constant(token));
+                }
+            },
+            Statement::Variable(variable) => {
+                let frame = self.frames.last_mut().expect("Failed to find frame");
+                for token in variable {
+                    let Variable(token) = token;
+                    if frame.constants.contains(&Constant(Rc::clone(&token))) {
+                        panic!("Tried to add {} as variable, but was already declared as a constant", token)
+                    }
+                    if frame.variables.contains(&Variable(Rc::clone(&token))) {
+                        panic!("Tried to add {} as variable, but was already declared as a variable", token)
+                    }
+                    frame.variables.insert(Variable(token));
+                }
+            },
+            Statement::Floating(floating) => {
+                //let Floating { sort, token, label } = floating;
+
+                let sort = Rc::clone(&floating.sort);
+                let token = Rc::clone(&floating.token);
+
+
+                if !self.lookup_variable(&token) {
+                    panic!("{} was not defined as a variable", token)
+                }
+                if !self.lookup_constant(&token) {
+                    panic!("{} was not defined as a constant", sort)
+                }
+
+                let frame = self.frames.last_mut().expect("Failed to find frame");
+                frame.floating.push(floating);
+
+            },
+            Statement::Axiom(_) => todo!(),
+            Statement::Essential(_) => todo!(),
+            Statement::Proof(_) => todo!(),
+            Statement::Disjoint(_) => todo!(),
+            Statement::ScopeBegin => todo!(),
+        };
+    }
+
+    fn lookup_constant(&self, constant: &Token) -> bool {
+        self.frames.iter().rev().any(|fr| fr.constants.contains(&Constant(Rc::clone(constant))))
+    }
+
+    fn lookup_variable(&self, variable: &Token) -> bool {
+        self.frames.iter().rev().any(|fr| fr.variables.contains(&Variable(Rc::clone(variable))))
     }
 }
 
@@ -231,7 +294,11 @@ impl Verifier {
 type Tokens = Rc<[Token]>;
 type MathStatement = Tokens;
 type Label = Token;
+
+#[derive(Eq, Hash, PartialEq)]
 struct Constant(Token);
+
+#[derive(Eq, Hash, PartialEq)]
 struct Variable(Token);
 struct Disjoint((Token, Token));
 struct Floating {
