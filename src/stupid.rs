@@ -227,3 +227,10 @@ enum Statement {
     Disjoint(Vec<Disjoint>),
     ScopeBegin,
 }
+
+pub struct Frame {
+    constants: HashSet<Constant>,
+    variables: HashSet<Variable>,
+    floating: Vec<Floating>,
+    essential: Vec<Essential>,
+}
