@@ -1,42 +1,41 @@
-use std::{io::{BufReader, Read, BufRead}, fs::File, collections::{HashSet, VecDeque, HashMap}, slice::SliceIndex, rc::Rc, cmp::{min, max}};
-
-
-
-
+use std::{
+    cmp::{max, min},
+    collections::{HashMap, HashSet, VecDeque},
+    fs::File,
+    io::{BufRead, BufReader, Read},
+    rc::Rc,
+    slice::SliceIndex,
+};
 
 pub fn verify_file(file_name: &str) {
     println!("filename was {}", file_name);
 }
-
 
 type Token = Rc<str>; //represents are arbitrary string with no whitespace
 
 struct Reader {
     open_buffers: Vec<BufReader<File>>,
     imported_files: HashSet<String>,
-    current_line: VecDeque<Token>
+    current_line: VecDeque<Token>,
 }
 
 /// almost does the caresian product
-fn self_cartesian_product(variables: Tokens) -> Vec<(Token, Token)>{
-
+fn self_cartesian_product(variables: Tokens) -> Vec<(Token, Token)> {
     let mut ret = vec![];
-        for x in variables.iter() {
-            for y in variables.iter() {
-                if x != y {
-                    let min = min(&x, &y);
-                    let max = max(&x, &y);
-                    ret.push((Rc::clone(*min), Rc::clone(*max)))
-                }
+    for x in variables.iter() {
+        for y in variables.iter() {
+            if x != y {
+                let min = min(&x, &y);
+                let max = max(&x, &y);
+                ret.push((Rc::clone(*min), Rc::clone(*max)))
             }
         }
+    }
 
     ret
 }
 
-
 impl Reader {
-
     /// return true, means ok
     /// return fales means we are done
     fn refill_current_line(&mut self) -> bool {
@@ -55,7 +54,6 @@ impl Reader {
             } else {
                 return false;
             }
-
         }
         true
     }
@@ -65,22 +63,22 @@ impl Reader {
         self.current_line.pop_front()
     }
 
-
     /// ignores comments and auto importrs files
     fn get_next_token(&mut self) -> Option<Token> {
-
         let mut token = self.get_next_token_raw();
 
         match token {
             Some(x) if x.as_ref() == "$(" => loop {
                 match self.get_next_token_raw() {
                     Some(x) if "$)" == x.as_ref() => return self.get_next_token(),
-                    _ => {},
+                    _ => {}
                 }
-            }
+            },
             Some(x) if x.as_ref() == "$[" => {
                 let filename = self.get_next_token_raw().expect("Couldn't find filename");
-                let endbracket = self.get_next_token_raw().expect("Coludn't find end bracket");
+                let endbracket = self
+                    .get_next_token_raw()
+                    .expect("Coludn't find end bracket");
 
                 // println!("In read file found filename: {:?}, endbracket: {:?}", filename, endbracket);
                 if endbracket.as_ref() != "$]" {
@@ -102,8 +100,7 @@ impl Reader {
 
     fn read_to_period(&mut self) -> Tokens {
         let mut stat: Vec<Rc<str>> = vec![];
-        let mut token = self.get_next_token()
-            .expect("Failed to read token");
+        let mut token = self.get_next_token().expect("Failed to read token");
         while token.as_ref() != "$." {
             stat.push(token.into());
             token = self.get_next_token().expect("EOF before $.");
@@ -111,37 +108,46 @@ impl Reader {
         stat.into()
     }
 
-    fn get_statement(&mut self) -> Option<Statement> {
+    pub fn get_statement(&mut self) -> Option<Statement> {
         let token = self.get_next_token();
 
         let statement = match token.as_deref() {
             Some("$}") => Statement::ScopeEnd,
-            Some("$c") => Statement::Constant( self.read_to_period().iter().map(|x| Constant(Rc::clone(x))).collect()),
-            Some("$v") => Statement::Variable( self.read_to_period().iter().map(|x| Variable(Rc::clone(x))).collect()),
+            Some("$c") => Statement::Constant(
+                self.read_to_period()
+                    .iter()
+                    .map(|x| Constant(Rc::clone(x)))
+                    .collect(),
+            ),
+            Some("$v") => Statement::Variable(
+                self.read_to_period()
+                    .iter()
+                    .map(|x| Variable(Rc::clone(x)))
+                    .collect(),
+            ),
 
             Some("$d") => {
-
                 let variables = self.read_to_period();
-                let disjoints = self_cartesian_product(variables).into_iter().map(|x| Disjoint(x)).collect();
+                let disjoints = self_cartesian_product(variables)
+                    .into_iter()
+                    .map(|x| Disjoint(x))
+                    .collect();
 
                 Statement::Disjoint(disjoints)
             }
             Some("${") => Statement::ScopeEnd,
             None => {
                 return None;
-            },
+            }
             Some(label) => match self.get_next_token().as_deref() {
-
-                Some("$f") => {
-                    match &self.read_to_period()[..] {
-                        [label, sort, token] => Statement::Floating(Floating {
-                            label: Rc::clone(label),
-                            sort: Rc::clone(sort),
-                            token: Rc::clone(token),
-                        }),
-                        _ => panic!("Incorrect syntax for floating")
-                    }
-                }
+                Some("$f") => match &self.read_to_period()[..] {
+                    [label, sort, token] => Statement::Floating(Floating {
+                        label: Rc::clone(label),
+                        sort: Rc::clone(sort),
+                        token: Rc::clone(token),
+                    }),
+                    _ => panic!("Incorrect syntax for floating"),
+                },
                 Some("$a") => {
                     let sort = self.get_next_token().expect("Could not find first token");
                     let statement = self.read_to_period();
@@ -153,7 +159,9 @@ impl Reader {
                     })
                 }
                 Some("$e") => {
-                    let sort = self.get_next_token().expect("Could not find first variable for ");
+                    let sort = self
+                        .get_next_token()
+                        .expect("Could not find first variable for ");
                     let statement = self.read_to_period();
 
                     Statement::Essential(Essential {
@@ -163,35 +171,37 @@ impl Reader {
                     })
                 }
                 Some("$p") => {
-                    let sort = self.get_next_token().expect("Could not find first variable for ");
+                    let sort = self
+                        .get_next_token()
+                        .expect("Could not find first variable for ");
                     let statement_and_proof = self.read_to_period();
                     let split: Vec<_> = statement_and_proof.split(|x| x.as_ref() == "$=").collect();
 
                     match &split[..] {
-                        [statement, proof] =>
-                    Statement::Proof(Proof {
-                        statement: Rc::from(*statement),
-                        sort,
-                        label: label.into(),
-                        proof: Rc::from(*proof),
-                    }),
+                        [statement, proof] => Statement::Proof(Proof {
+                            statement: Rc::from(*statement),
+                            sort,
+                            label: label.into(),
+                            proof: Rc::from(*proof),
+                        }),
                         _ => panic!("Too many $="),
                     }
                 }
-                _ => todo!()
+                _ => todo!(),
             },
         };
         todo!()
     }
 }
 
-
 pub struct FrameStack {
     list: Vec<Frame>,
 }
 
 impl FrameStack {
-
+    fn add_statement(statement: Statement) {
+        todo!();
+    }
 }
 
 enum LabelEntry {
@@ -202,12 +212,21 @@ enum LabelEntry {
 }
 pub struct Verifier {
     framestack: FrameStack,
+    reader: Reader,
     labels: HashMap<Label, LabelEntry>,
 }
+
 impl Verifier {
-
+    fn read(&mut self) {
+        loop {
+            let statement = self.reader.get_statement();
+            match statement {
+                Some(statement) => todo!(),
+                None => break,
+            }
+        }
+    }
 }
-
 
 type Tokens = Rc<[Token]>;
 type MathStatement = Tokens;

@@ -1,6 +1,6 @@
+mod database;
 mod framestack;
 mod reader;
-mod database;
 mod stupid;
 use std::fs::File;
 use std::io::BufReader;
@@ -27,7 +27,7 @@ fn main() {
 
         let file = File::open(file_name).expect("Failed to find file");
 
-    // println!("Found file name {:?}", args[1]);
+        // println!("Found file name {:?}", args[1]);
         use std::time::Instant;
         let now = Instant::now();
 
