@@ -34,6 +34,7 @@ fn self_cartesian_product(variables: Tokens) -> Vec<(Token, Token)>{
     ret
 }
 
+
 impl Reader {
 
     /// return true, means ok
@@ -125,7 +126,7 @@ impl Reader {
 
                 Statement::Disjoint(disjoints)
             }
-            Some("$}") => Statement::ScopeEnd,
+            Some("${") => Statement::ScopeEnd,
             None => {
                 return None;
             },
@@ -176,16 +177,36 @@ impl Reader {
                     }),
                         _ => panic!("Too many $="),
                     }
-
                 }
                 _ => todo!()
-
             },
         };
         todo!()
     }
 }
 
+
+pub struct FrameStack {
+    list: Vec<Frame>,
+}
+
+impl FrameStack {
+
+}
+
+enum LabelEntry {
+    Floating(Floating),
+    Essential(Essential),
+    Axiom(Axiom),
+    Proof(Proof),
+}
+pub struct Verifier {
+    framestack: FrameStack,
+    labels: HashMap<Label, LabelEntry>,
+}
+impl Verifier {
+
+}
 
 
 type Tokens = Rc<[Token]>;
@@ -215,6 +236,7 @@ struct Proof {
     proof: Tokens,
     label: Label,
 }
+
 /// THins to parse inot
 enum Statement {
     ScopeEnd,
