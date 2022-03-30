@@ -381,13 +381,21 @@ impl Verifier {
             match statement {
                 Some(statement) => {
                     self.framestack.add_statement(&statement);
-                    match &statement {
+                    match statement {
                         Statement::Floating(f) => {
-                            //self.labels.insert(f.label, LabelEntry::Floating(*f));
+                            self.labels.insert(Rc::clone(&f.label), LabelEntry::Floating(f));
                         },
-                        Statement::Axiom(_) => todo!(),
-                        Statement::Essential(_) => todo!(),
-                        Statement::Proof(_) => todo!(),
+                        Statement::Axiom(a) => {
+                            self.labels.insert(Rc::clone(&a.label), LabelEntry::Axiom(a));
+                        },
+                        Statement::Essential(e) => {
+                            self.labels.insert(Rc::clone(&e.label), LabelEntry::Essential(e));
+
+},
+                        Statement::Proof(p) => {
+                            self.labels.insert(Rc::clone(&p.label), LabelEntry::Proof(p));
+
+                        },
                         _ => {}
                     }
                 },
