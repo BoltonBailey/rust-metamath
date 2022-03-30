@@ -7,7 +7,11 @@ use std::{
     slice::{SliceIndex, }, iter::{FromIterator, self},
 };
 
+use crate::framestack;
+
 pub fn verify_file(file_name: &str) {
+
+    let verifier = Verifier::new(file_name);
     println!("filename was {}", file_name);
 }
 
@@ -37,6 +41,10 @@ fn self_cartesian_product(variables: Tokens) -> Vec<(Token, Token)> {
 }
 
 impl Reader {
+    fn new(file: &str) -> Self { Self { open_buffers: vec! [
+        BufReader::new(File::open(file).expect("File not availabel"))
+    ], imported_files: HashSet::new(), current_line: VecDeque::new() } }
+
     /// return true, means ok
     /// return fales means we are done
     fn refill_current_line(&mut self) -> bool {
@@ -286,14 +294,14 @@ impl FrameStack {
 
         todo!()
     }
-    pub fn lookup_d(&self, x: Token, y: Token) -> bool {
+    fn lookup_d(&self, x: Token, y: Token) -> bool {
         todo!()
     }
-    pub fn lookup_e(&self, stmt: Statement) -> Label {
+    fn lookup_e(&self, stmt: Statement) -> Label {
         todo!()
     }
 
-    pub fn make_assertion(&self, statement: Tokens) -> Assertion {
+    fn make_assertion(&self, statement: Tokens) -> Assertion {
         let essential: Vec<_> = self.frames.iter().flat_map(|frame| frame.essential.iter()).cloned().collect();
         let essential_statements: Vec<_> = self.frames.iter().flat_map(|frame| frame.essential.iter().map(|e| Rc::clone(&e.statement))).collect();
 
@@ -333,7 +341,7 @@ impl FrameStack {
 
     }
 
-    pub fn convert_to_statement(&self, tokens: Tokens) -> Proposition {
+    fn convert_to_statement(&self, tokens: Tokens) -> Proposition {
         tokens.into_iter().map(|token| {
             if self.lookup_constant(token) {
                 Term::Constant(Constant(Rc::clone(token)))
@@ -343,7 +351,19 @@ impl FrameStack {
                 panic!("token {} not declared as constant or variable", token);
             }
         }).collect()
-    } 
+    }
+
+    fn new() -> FrameStack {
+        FrameStack {
+            frames: vec![ Frame::new() ]
+        }
+    }
+}
+
+impl Default for FrameStack {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // not exactyl suer if this is the right terminloogy.
@@ -394,6 +414,7 @@ impl Verifier {
 },
                         Statement::Proof(p) => {
                             self.labels.insert(Rc::clone(&p.label), LabelEntry::Proof(p));
+                            //p.verify();
 
                         },
                         _ => {}
@@ -402,6 +423,15 @@ impl Verifier {
                 None => break,
             }
         }
+    }
+
+    pub(crate) fn new(file_path: &str) -> Verifier {
+        Verifier {
+            framestack: FrameStack::new(),
+            reader: Reader::new(file_path),
+            labels: HashMap::new(),
+        }
+
     }
 }
 
@@ -462,4 +492,14 @@ pub struct Frame {
     floating: Vec<Floating>,
     essential: Vec<Essential>,
     disjoint: HashSet<Disjoint>,
+}
+
+impl Frame {
+    pub fn new() -> Self { Self { constants: HashSet::new(),
+                                  variables: HashSet::new(), floating: Vec::new(), essential: Vec::new(), disjoint: HashSet::new() } }
+}
+impl Proof {
+    fn verify(&self) {
+        todo!()
+    }
 }
