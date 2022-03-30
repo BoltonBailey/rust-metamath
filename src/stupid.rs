@@ -4,7 +4,7 @@ use std::{
     fs::File,
     io::{BufRead, BufReader, Read},
     rc::Rc,
-    slice::{SliceIndex, }, iter::FromIterator,
+    slice::{SliceIndex, }, iter::{FromIterator, self},
 };
 
 pub fn verify_file(file_name: &str) {
@@ -19,7 +19,8 @@ struct Reader {
     current_line: VecDeque<Token>,
 }
 
-/// almost does the caresian product
+/// almost does the caresian product, but actually only does half of it
+/// since the other half is just swapping the left and rgiht
 fn self_cartesian_product(variables: Tokens) -> Vec<(Token, Token)> {
     let mut ret = vec![];
     for x in variables.iter() {
@@ -201,7 +202,7 @@ pub struct FrameStack {
 }
 
 impl FrameStack {
-    fn add_statement(&mut self, statement: Statement) {
+    fn add_statement(&mut self, statement: &Statement) {
         match statement {
             Statement::ScopeEnd => {
                 self.frames.pop();
@@ -216,7 +217,7 @@ impl FrameStack {
                     if frame.variables.contains(&Variable(Rc::clone(&token))) {
                         panic!("Tried to add {} as constant, but was already declared as a variable", token)
                     }
-                    frame.constants.insert(Constant(token));
+                    frame.constants.insert(Constant(Rc::clone(&token)));
                 }
             },
             Statement::Variable(variable) => {
@@ -229,7 +230,7 @@ impl FrameStack {
                     if frame.variables.contains(&Variable(Rc::clone(&token))) {
                         panic!("Tried to add {} as variable, but was already declared as a variable", token)
                     }
-                    frame.variables.insert(Variable(token));
+                    frame.variables.insert(Variable(Rc::clone(&token)));
                 }
             },
             Statement::Floating(floating) => {
@@ -247,7 +248,7 @@ impl FrameStack {
                 }
 
                 let frame = self.frames.last_mut().expect("Failed to find frame");
-                frame.floating.push(floating);
+                frame.floating.push(floating.clone());
 
             },
             Statement::Axiom(axiom) => {
@@ -255,12 +256,12 @@ impl FrameStack {
             },
             Statement::Essential(essential) => {
                 let frame = self.frames.last_mut().expect("Failed to find frame");
-                frame.essential.push(essential);
+                frame.essential.push(essential.clone());
             },
             Statement::Proof(_) => todo!(),
             Statement::Disjoint(disjoints) => {
                 let frame = self.frames.last_mut().expect("Failed to find frame");
-                let disjoint_set : HashSet<Disjoint> = HashSet::from_iter(disjoints.into_iter());
+                let disjoint_set : HashSet<Disjoint> = HashSet::from_iter(disjoints.iter().cloned());
                 frame.disjoint.extend(disjoint_set);
             },
             Statement::ScopeBegin => todo!(),
@@ -291,6 +292,73 @@ impl FrameStack {
     pub fn lookup_e(&self, stmt: Statement) -> Label {
         todo!()
     }
+
+    pub fn make_assertion(&self, statement: Tokens) -> Assertion {
+        let essential: Vec<_> = self.frames.iter().flat_map(|frame| frame.essential.iter()).cloned().collect();
+        let essential_statements: Vec<_> = self.frames.iter().flat_map(|frame| frame.essential.iter().map(|e| Rc::clone(&e.statement))).collect();
+
+        let chained = essential_statements.iter().chain(iter::once(&statement));
+
+        let mandatory: Tokens  = chained.flat_map(|statement| statement.iter()).
+            filter(|token| self.lookup_variable(token))
+            .cloned()
+            .collect();
+
+        let cartesian: HashSet<_> = self_cartesian_product(Rc::clone(&mandatory)).into_iter().map(|pair| Disjoint(pair)).collect();
+
+        let disjoint: HashSet<Disjoint> =
+            self.frames.iter()
+            .flat_map(|frame| frame.disjoint.intersection(&cartesian))
+            .cloned()
+            .collect();
+
+
+
+        let mut floating: VecDeque<Floating> = VecDeque::new();
+        let mut mandatory: HashSet<_> = mandatory.iter().collect();
+        self.frames.iter().rev().for_each(|fr| {
+            fr.floating.iter().rev().for_each(|float| {
+                if mandatory.contains(&float.token) {
+                    floating.push_front(float.clone());
+                    mandatory.remove(&float.token);
+                }
+            });
+        });
+        Assertion {
+            disjoint,
+            floating,
+            essential,
+            statement
+        }
+
+    }
+
+    pub fn convert_to_statement(&self, tokens: Tokens) -> Proposition {
+        tokens.into_iter().map(|token| {
+            if self.lookup_constant(token) {
+                Term::Constant(Constant(Rc::clone(token)))
+            } else if self.lookup_variable(token) {
+                Term::Variable(Variable(Rc::clone(token)))
+            } else {
+                panic!("token {} not declared as constant or variable", token);
+            }
+        }).collect()
+    } 
+}
+
+// not exactyl suer if this is the right terminloogy.
+type Proposition = Vec<Term>;
+
+enum Term {
+    Variable(Variable),
+    Constant(Constant),
+}
+
+struct Assertion {
+    disjoint: HashSet<Disjoint>,
+    floating: VecDeque<Floating>,
+    essential: Vec<Essential>,
+    statement: Tokens,
 }
 
 enum LabelEntry {
@@ -309,8 +377,20 @@ impl Verifier {
     fn read(&mut self) {
         loop {
             let statement = self.reader.get_statement();
+
             match statement {
-                Some(statement) => todo!(),
+                Some(statement) => {
+                    self.framestack.add_statement(&statement);
+                    match &statement {
+                        Statement::Floating(f) => {
+                            //self.labels.insert(f.label, LabelEntry::Floating(*f));
+                        },
+                        Statement::Axiom(_) => todo!(),
+                        Statement::Essential(_) => todo!(),
+                        Statement::Proof(_) => todo!(),
+                        _ => {}
+                    }
+                },
                 None => break,
             }
         }
@@ -326,25 +406,28 @@ struct Constant(Token);
 
 #[derive(Eq, Hash, PartialEq)]
 struct Variable(Token);
-#[derive(Eq, Hash, PartialEq)]
+#[derive(Eq, Hash, PartialEq, Clone)]
 struct Disjoint((Token, Token));
 
-#[derive(Eq, Hash, PartialEq)]
+#[derive(Eq, Hash, PartialEq, Clone)]
 struct Floating {
     sort: Token,
     token: Token,
     label: Label,
 }
+#[derive(Eq, Hash, PartialEq, Clone)]
 struct Essential {
     statement: MathStatement,
     sort: Token,
     label: Label,
 }
+#[derive(Eq, Hash, PartialEq, Clone)]
 struct Axiom {
     statement: MathStatement,
     sort: Token,
     label: Label,
 }
+#[derive(Eq, Hash, PartialEq, Clone)]
 struct Proof {
     statement: MathStatement,
     sort: Token,
