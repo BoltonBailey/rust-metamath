@@ -286,7 +286,9 @@ impl FrameStack {
                 let disjoint_set: HashSet<Disjoint> = HashSet::from_iter(disjoints.iter().cloned());
                 frame.disjoint.extend(disjoint_set);
             }
-            Statement::ScopeBegin => todo!(),
+            Statement::ScopeBegin => {
+                self.frames.push(Frame::new())
+            },
         };
     }
 
