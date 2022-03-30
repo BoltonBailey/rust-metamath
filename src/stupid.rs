@@ -5,10 +5,9 @@ use std::{
     io::{BufRead, BufReader, Read},
     iter::{self, FromIterator},
     rc::Rc,
-    slice::SliceIndex,
 };
 
-use crate::framestack;
+
 
 pub fn verify_file(file_name: &str) {
     let mut verifier = Verifier::new(file_name);
@@ -81,7 +80,7 @@ impl Reader {
 
     /// ignores comments and auto importrs files
     fn get_next_token(&mut self) -> Option<Token> {
-        let mut token = self.get_next_token_raw();
+        let token = self.get_next_token_raw();
 
         match token {
             Some(x) if x.as_ref() == "$(" => loop {
@@ -108,9 +107,9 @@ impl Reader {
                     ));
                     self.imported_files.insert(filename.as_ref().into());
                 }
-                return self.get_next_token();
+                self.get_next_token()
             }
-            x => return x,
+            x => x,
         }
     }
 
@@ -118,7 +117,7 @@ impl Reader {
         let mut stat: Vec<Rc<str>> = vec![];
         let mut token = self.get_next_token().expect("Failed to read token");
         while token.as_ref() != "$." {
-            stat.push(token.into());
+            stat.push(token);
             token = self.get_next_token().expect("EOF before $.");
         }
         stat.into()
@@ -146,12 +145,12 @@ impl Reader {
                 let variables = self.read_to_period();
                 let disjoints = self_cartesian_product(variables)
                     .into_iter()
-                    .map(|x| Disjoint(x))
+                    .map(Disjoint)
                     .collect();
 
                 Statement::Disjoint(disjoints)
             }
-            Some("${") => Statement::ScopeEnd,
+            Some("${") => Statement::ScopeBegin,
             None => {
                 return None;
             }
@@ -226,38 +225,38 @@ impl FrameStack {
                 let frame = self.frames.last_mut().expect("Failed to find frame");
                 for token in constants {
                     let Constant(token) = token;
-                    if frame.constants.contains(&Constant(Rc::clone(&token))) {
+                    if frame.constants.contains(&Constant(Rc::clone(token))) {
                         panic!(
                             "Tried to add {} as constant, but was already declared as a Constant",
                             token
                         )
                     }
-                    if frame.variables.contains(&Variable(Rc::clone(&token))) {
+                    if frame.variables.contains(&Variable(Rc::clone(token))) {
                         panic!(
                             "Tried to add {} as constant, but was already declared as a variable",
                             token
                         )
                     }
-                    frame.constants.insert(Constant(Rc::clone(&token)));
+                    frame.constants.insert(Constant(Rc::clone(token)));
                 }
             }
             Statement::Variable(variable) => {
                 let frame = self.frames.last_mut().expect("Failed to find frame");
                 for token in variable {
                     let Variable(token) = token;
-                    if frame.constants.contains(&Constant(Rc::clone(&token))) {
+                    if frame.constants.contains(&Constant(Rc::clone(token))) {
                         panic!(
                             "Tried to add {} as variable, but was already declared as a constant",
                             token
                         )
                     }
-                    if frame.variables.contains(&Variable(Rc::clone(&token))) {
+                    if frame.variables.contains(&Variable(Rc::clone(token))) {
                         panic!(
                             "Tried to add {} as variable, but was already declared as a variable",
                             token
                         )
                     }
-                    frame.variables.insert(Variable(Rc::clone(&token)));
+                    frame.variables.insert(Variable(Rc::clone(token)));
                 }
             }
             Statement::Floating(floating) => {
@@ -276,7 +275,7 @@ impl FrameStack {
                 let frame = self.frames.last_mut().expect("Failed to find frame");
                 frame.floating.push(floating.clone());
             }
-            Statement::Axiom(axiom) => {}
+            Statement::Axiom(_axiom) => {}
             Statement::Essential(essential) => {
                 let frame = self.frames.last_mut().expect("Failed to find frame");
                 frame.essential.push(essential.clone());
@@ -306,7 +305,7 @@ impl FrameStack {
     }
 
     fn lookup_floating(&self, variable: &Token) -> Label {
-        let frame = self
+        let _frame = self
             .frames
             .iter()
             .rev()
@@ -320,10 +319,10 @@ impl FrameStack {
 
         todo!()
     }
-    fn lookup_d(&self, x: Token, y: Token) -> bool {
+    fn lookup_d(&self, _x: Token, _y: Token) -> bool {
         todo!()
     }
-    fn lookup_e(&self, stmt: Statement) -> Label {
+    fn lookup_e(&self, _stmt: Statement) -> Label {
         todo!()
     }
 
@@ -350,7 +349,7 @@ impl FrameStack {
 
         let cartesian: HashSet<_> = self_cartesian_product(Rc::clone(&mandatory))
             .into_iter()
-            .map(|pair| Disjoint(pair))
+            .map(Disjoint)
             .collect();
 
         let disjoint: HashSet<Disjoint> = self
@@ -380,7 +379,7 @@ impl FrameStack {
 
     fn convert_to_statement(&self, tokens: Tokens) -> Proposition {
         tokens
-            .into_iter()
+            .iter()
             .map(|token| {
                 if self.lookup_constant(token) {
                     Term::Constant(Constant(Rc::clone(token)))
