@@ -159,43 +159,34 @@ impl Reader {
                     [label, sort, token] => Statement::Floating(Floating {
                         label: Rc::clone(label),
                         sort: Rc::clone(sort),
+
                         token: Rc::clone(token),
                     }),
                     _ => panic!("Incorrect syntax for floating"),
                 },
                 Some("$a") => {
-                    let sort = self.get_next_token().expect("Could not find first token");
                     let statement = self.read_to_period();
 
                     Statement::Axiom(Axiom {
                         statement,
-                        sort,
                         label: label.into(),
                     })
                 }
                 Some("$e") => {
-                    let sort = self
-                        .get_next_token()
-                        .expect("Could not find first variable for ");
                     let statement = self.read_to_period();
 
                     Statement::Essential(Essential {
                         statement,
-                        sort,
                         label: label.into(),
                     })
                 }
                 Some("$p") => {
-                    let sort = self
-                        .get_next_token()
-                        .expect("Could not find first variable for ");
                     let statement_and_proof = self.read_to_period();
                     let split: Vec<_> = statement_and_proof.split(|x| x.as_ref() == "$=").collect();
 
                     match &split[..] {
                         [statement, proof] => Statement::Proof(Proof {
                             statement: Rc::from(*statement),
-                            sort,
                             label: label.into(),
                             proof: Rc::from(*proof),
                         }),
@@ -275,7 +266,11 @@ impl FrameStack {
                 let frame = self.frames.last_mut().expect("Failed to find frame");
                 frame.floating.push(floating.clone());
             }
-            Statement::Axiom(_axiom) => {}
+            Statement::Axiom(axiom) => {
+                //let assertion = self.make_assertion(axiom.statement);
+                //let full_statement = vec![axiom.sort] + axiom.statement;
+
+            }
             Statement::Essential(essential) => {
                 let frame = self.frames.last_mut().expect("Failed to find frame");
                 frame.essential.push(essential.clone());
@@ -458,6 +453,7 @@ impl Verifier {
                         Statement::Proof(p) => {
                             self.labels
                                 .insert(Rc::clone(&p.label), LabelEntry::Proof(p));
+
                             //p.verify();
                         }
                         _ => {}
@@ -491,26 +487,23 @@ struct Disjoint((Token, Token));
 
 #[derive(Eq, Hash, PartialEq, Clone)]
 struct Floating {
-    sort: Token,
     token: Token,
+    sort: Token,
     label: Label,
 }
 #[derive(Eq, Hash, PartialEq, Clone)]
 struct Essential {
     statement: MathStatement,
-    sort: Token,
     label: Label,
 }
 #[derive(Eq, Hash, PartialEq, Clone)]
 struct Axiom {
     statement: MathStatement,
-    sort: Token,
     label: Label,
 }
 #[derive(Eq, Hash, PartialEq, Clone)]
 struct Proof {
     statement: MathStatement,
-    sort: Token,
     proof: Tokens,
     label: Label,
 }
