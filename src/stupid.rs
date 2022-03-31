@@ -155,15 +155,18 @@ impl Reader {
                 return None;
             }
             Some(label) => match self.get_next_token().as_deref() {
-                Some("$f") => match &self.read_to_period()[..] {
+                Some("$f") => {
+
+                    let tokens = self.read_to_period();
+                    match &tokens[..] {
                     [label, sort, token] => Statement::Floating(Floating {
                         label: Rc::clone(label),
                         sort: Rc::clone(sort),
 
                         token: Rc::clone(token),
                     }),
-                    _ => panic!("Incorrect syntax for floating"),
-                },
+                        _ => panic!("Incorrect syntax for floating, {:?}", tokens),
+                }},
                 Some("$a") => {
                     let statement = self.read_to_period();
 
