@@ -4,7 +4,7 @@ use std::{
     fs::File,
     io::{BufRead, BufReader, Read},
     iter::{self, FromIterator},
-    rc::Rc,
+    rc::Rc, fmt::Pointer,
 };
 
 
@@ -267,7 +267,7 @@ impl FrameStack {
                 frame.floating.push(floating.clone());
             }
             Statement::Axiom(axiom) => {
-                //let assertion = self.make_assertion(axiom.statement);
+                let assertion = self.make_assertion(Rc::clone(&axiom.statement));
                 //let full_statement = vec![axiom.sort] + axiom.statement;
 
             }
@@ -417,11 +417,13 @@ struct Assertion {
     statement: Tokens,
 }
 
+
 enum LabelEntry {
-    Floating(Floating),
-    Essential(Essential),
-    Axiom(Axiom),
-    Proof(Proof),
+    /// axioms and proofs
+    Assertable(Assertion),
+    /// essential and floating
+    NotAssertable(MathStatement)
+
 }
 pub struct Verifier {
     framestack: FrameStack,
@@ -438,23 +440,26 @@ impl Verifier {
                 Some(statement) => {
                     self.framestack.add_statement(&statement);
                     match statement {
-                        Statement::Floating(f) => {
+                        Statement::Floating(Floating { token, sort, label }) => {
                             self.labels
-                                .insert(Rc::clone(&f.label), LabelEntry::Floating(f));
+                                .insert(label, LabelEntry::NotAssertable(Rc::new([sort, token])));
                         }
-                        Statement::Axiom(a) => {
+                        Statement::Axiom(Axiom { statement, label }) => {
+                            let assertion = self.framestack.make_assertion(statement);
                             self.labels
-                                .insert(Rc::clone(&a.label), LabelEntry::Axiom(a));
+                                .insert(label, LabelEntry::Assertable(assertion));
                         }
-                        Statement::Essential(e) => {
+                        Statement::Essential(Essential { statement, label }) => {
                             self.labels
-                                .insert(Rc::clone(&e.label), LabelEntry::Essential(e));
+                                .insert(label, LabelEntry::NotAssertable(statement));
                         }
                         Statement::Proof(p) => {
+                            self.verify(&p);
+                            let Proof {statement, proof, label} = p;
+                            let assertion = self.framestack.make_assertion(statement);
                             self.labels
-                                .insert(Rc::clone(&p.label), LabelEntry::Proof(p));
+                                .insert(label, LabelEntry::Assertable(assertion));
 
-                            //p.verify();
                         }
                         _ => {}
                     }
@@ -471,6 +476,87 @@ impl Verifier {
             labels: HashMap::new(),
         }
     }
+
+    fn verify(&self, p: &Proof) {
+
+
+        let Proof { statement, proof, label } = p;
+        let mut stack: Vec<Tokens> = vec![];
+        if proof[0].as_ref() == "(" {
+            println!("Decomprission proof");
+        }
+
+        for label in proof.iter() {
+            let label_entry = &self.labels[label];
+
+            match label_entry {
+                LabelEntry::Assertable(assertion) => {
+                    self.verify_assertion(assertion, &mut stack)
+                },
+                LabelEntry::NotAssertable(non_assert) => {
+                    stack.push(Rc::clone(non_assert));
+                },
+            }
+        }
+        if stack.len() != 1 {
+            panic!("stack has anentry greater than >1 at end")
+        }
+        if &stack[0] != statement {
+            panic!("assertion proved doesn't match ")
+        }
+    }
+
+    fn verify_assertion(&self, assertion: &Assertion, stack: &mut Vec<Tokens>) {
+        let Assertion { disjoint, floating, essential, statement } = assertion;
+
+        let f_and_e = floating.len() + essential.len();
+
+        let stack_slice : Vec<_> = stack.drain(stack.len() - f_and_e..).collect();
+        let mandatory_stack = &stack_slice[..floating.len()];
+        let essential_stack = &stack_slice[stack_slice.len() - floating.len()..];
+
+        let mut substitution : HashMap<Token, Tokens> = HashMap::new();
+
+
+        for (stack_f, f) in mandatory_stack.iter().zip(floating) {
+            let Floating { token, sort, label } = f;
+            let stack_sort = &stack_f[0];
+            let stack_statement = &stack_f[1..];
+
+            if sort != stack_sort {
+                panic!("Stack entry does not match mandatory hypothesis")
+            }
+
+            substitution.insert(Rc::clone(token), Rc::from(stack_statement));
+        }
+
+        for (stack_e, e) in essential_stack.iter().zip(essential) {
+            let Essential { statement, label } = e;
+            if stack_e != statement {
+                panic!("Stack entry does not match essential hypothesis");
+            }
+        }
+
+        let subs = self.apply_substitution(Rc::clone(statement), substitution);
+        stack.push(Rc::clone(&subs));
+
+    }
+
+    fn apply_substitution(&self, statement: Tokens, substitution: HashMap<Token, Tokens>) -> Tokens {
+        let mut result: Vec<Token> = vec![];
+
+
+        for tok in statement.iter() {
+            if substitution.contains_key(tok.as_ref()) {
+                result.extend(substitution[tok].iter().cloned());
+            } else {
+                result.push(tok.clone());
+            }
+        }
+        result.into()
+    }
+
+
 }
 
 type Tokens = Rc<[Token]>;
@@ -508,6 +594,8 @@ struct Proof {
     label: Label,
 }
 
+
+
 /// THins to parse inot
 enum Statement {
     ScopeEnd,
@@ -540,8 +628,17 @@ impl Frame {
         }
     }
 }
-impl Proof {
-    fn verify(&self) {
-        todo!()
-    }
-}
+// impl Proof {
+//     fn verify(&self) {
+//         let Proof { statement, proof, label } = self;
+//         let mut stack: Vec<Statement> = vec![];
+//         if proof[0].as_ref() == "(" {
+//             println!("Decomprission proof");
+//         }
+
+//         for label in proof {
+//             let label_entry = self.label
+//         }
+
+//     }
+// }
