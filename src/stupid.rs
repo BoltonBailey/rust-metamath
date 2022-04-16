@@ -159,8 +159,8 @@ impl Reader {
 
                     let tokens = self.read_to_period();
                     match &tokens[..] {
-                    [label, sort, token] => Statement::Floating(Floating {
-                        label: Rc::clone(label),
+                    [sort, token] => Statement::Floating(Floating {
+                        label: label.into(),
                         sort: Rc::clone(sort),
 
                         token: Rc::clone(token),
