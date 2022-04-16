@@ -262,7 +262,7 @@ impl FrameStack {
                 if !self.lookup_variable(&token) {
                     panic!("{} was not defined as a variable", token)
                 }
-                if !self.lookup_constant(&token) {
+                if !self.lookup_constant(&sort) {
                     panic!("{} was not defined as a constant", sort)
                 }
 
