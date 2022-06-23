@@ -106,7 +106,7 @@ impl Tokens {
         }
     }
 
-    pub fn readstat(&mut self) -> Statement {
+    pub fn read_statement(&mut self) -> Statement {
         let mut stat: Vec<Rc<str>> = vec![];
         let mut token = self
             .read_comment()

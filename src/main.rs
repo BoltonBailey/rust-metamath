@@ -48,27 +48,27 @@ impl MM {
         }
     }
 
-    fn read(&mut self, toks: &mut Tokens) {
+    fn read(&mut self, tokens: &mut Tokens) {
         // println!("Starting function read");
         self.fs.push();
         let mut label: Option<String> = None;
-        let mut tok = toks.read_comment();
+        let mut tok = tokens.read_comment();
         // println!("In MM read, found token to be {:?}", tok);
         loop {
             match tok.as_deref() {
                 Some("$}") => break,
                 Some("$c") => {
-                    for tok in toks.readstat().iter() {
+                    for tok in tokens.read_statement().iter() {
                         self.fs.add_c(tok.clone());
                     }
                 }
                 Some("$v") => {
-                    for tok in toks.readstat().iter() {
+                    for tok in tokens.read_statement().iter() {
                         self.fs.add_v(tok.clone());
                     }
                 }
                 Some("$f") => {
-                    let stat = toks.readstat();
+                    let stat = tokens.read_statement();
                     let label_u: Label = label.expect("$f must have a label").into();
                     if stat.len() != 2 {
                         panic!("$f must have length 2");
@@ -88,7 +88,7 @@ impl MM {
                         _ => {}
                     }
 
-                    let data = LabelEntry::DollarA(self.fs.make_assertion(toks.readstat()));
+                    let data = LabelEntry::DollarA(self.fs.make_assertion(tokens.read_statement()));
                     self.labels.insert(label_u.into(), Rc::new(data));
                     label = None;
                 }
@@ -96,7 +96,7 @@ impl MM {
                 Some("$e") => {
                     let label_u: Label = label.expect("e must have label").into();
 
-                    let stat = toks.readstat();
+                    let stat = tokens.read_statement();
                     self.fs.add_e(stat.clone(), label_u.clone());
                     let data = LabelEntry::DollarE(stat);
                     self.labels.insert(label_u.clone(), Rc::new(data));
@@ -108,7 +108,7 @@ impl MM {
                         //could be rewritten better
                         std::process::exit(0);
                     }
-                    let stat = toks.readstat();
+                    let stat = tokens.read_statement();
                     let i = stat
                         .iter()
                         .position(|x| x.as_ref() == "$=")
@@ -129,10 +129,10 @@ impl MM {
                     label = None;
                 }
                 Some("$d") => {
-                    self.fs.add_d(toks.readstat());
+                    self.fs.add_d(tokens.read_statement());
                 }
                 Some("${") => {
-                    self.read(toks);
+                    self.read(tokens);
                 }
                 Some(x) if !x.starts_with('$') => {
                     label = tok;
@@ -142,7 +142,7 @@ impl MM {
                 }
                 None => break,
             }
-            tok = toks.read_comment();
+            tok = tokens.read_comment();
         }
         self.fs.list.pop();
     }
