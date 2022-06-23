@@ -183,7 +183,7 @@ impl MM {
         let ep = proof
             .iter()
             .position(|x| x.as_ref() == ")")
-            .expect("Failed to find matching parthesis");
+            .expect("Failed to find matching parenthesis");
 
         let mut labels: Vec<Rc<str>> = self.get_labels(Rc::clone(&stat), ep);
         let hyp_end = labels.len(); //when the f and e end
@@ -219,7 +219,7 @@ impl MM {
 
                     match data.deref() {
                         LabelEntry::DollarA(a) | LabelEntry::DollarP(a) => {
-                            println!("Verifying hypothesis  {:?}", a);
+                            // println!("Verifying hypothesis  {:?}", a);
                             let new_prev = self.verify_assertion(a, &mut stack);
                             previous_proof = Some(new_prev);
                         }
@@ -314,12 +314,12 @@ impl MM {
         proof_indeces
     }
 
-    fn print_stack(stack: &Vec<Statement>) {
-        println!(
-            "stack: {:?}",
-            stack.iter().map(|x| x.join(" ")).collect::<Vec<String>>()
-        );
-    }
+    // fn print_stack(stack: &Vec<Statement>) {
+    //     println!(
+    //         "stack: {:?}",
+    //         stack.iter().map(|x| x.join(" ")).collect::<Vec<String>>()
+    //     );
+    // }
 
     fn verify_assertion(&mut self, assertion: &Assertion, stack: &mut Vec<Statement>) -> Statement {
         let Assertion {
@@ -389,7 +389,7 @@ impl MM {
         }
 
         if proof.is_empty() {
-            println!("Did not find proof for {}, skipping", stat_label);
+            // println!("Did not find proof for {}, skipping", stat_label);
             return;
         }
 
@@ -424,7 +424,7 @@ fn main() {
 
     let args: Vec<String> = std::env::args().collect();
 
-    // println!("Got cmd argumnets {:?}", args);
+    // println!("Got cmd arguments {:?}", args);
 
     let mut mm = MM::new(args.get(2).cloned(), args.get(3).cloned());
 
@@ -436,5 +436,5 @@ fn main() {
     mm.read(&mut Tokens::new(BufReader::new(file)));
     mm.dump();
     let elapsed = now.elapsed();
-    println!("Finished checking in {:.2?}", elapsed);
+    // println!("Finished checking in {:.2?}", elapsed);
 }
