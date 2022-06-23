@@ -193,18 +193,18 @@ impl MM {
 
         let label_end = labels.len();
 
-        let proof_indeces = Self::get_proof_indeces(compressed_proof);
-        if proof_indeces.is_empty() {
+        let proof_indices = Self::get_proof_indices(compressed_proof);
+        if proof_indices.is_empty() {
             // we didn't do the proof yet
             return;
         }
 
         let mut subproofs: Vec<Statement> = vec![]; //stuff tagged  with Zs
-                                                    //let mut prev_proofs: Vec<CompressedProof> = vec![]; // when we contruct a subproof, we have to know the hyps
+                                                    //let mut prev_proofs: Vec<CompressedProof> = vec![]; // when we construct a subproof, we have to know the hyps
         let mut stack: Vec<Statement> = vec![];
         let mut previous_proof: Option<Statement> = None;
 
-        for pf_int in &proof_indeces {
+        for pf_int in &proof_indices {
             match pf_int {
                 None => {
                     let last_proof = previous_proof
@@ -293,25 +293,25 @@ impl MM {
         labels
     }
 
-    fn get_proof_indeces(compressed_proof: String) -> Vec<Option<usize>> {
-        let mut proof_indeces: Vec<Option<usize>> = vec![];
+    fn get_proof_indices(compressed_proof: String) -> Vec<Option<usize>> {
+        let mut proof_indices: Vec<Option<usize>> = vec![];
         let mut cur_index: usize = 0;
 
         for ch in compressed_proof.chars() {
             if ch == 'Z' {
-                proof_indeces.push(None);
+                proof_indices.push(None);
             } else if ('A'..='T').contains(&ch) {
                 cur_index = 20 * cur_index + (ch as i32 - 'A' as i32 + 1) as usize;
                 if cur_index == 0 {
                     panic!("current index was tagged as 0, bad character {}", ch);
                 }
-                proof_indeces.push(Some(cur_index - 1));
+                proof_indices.push(Some(cur_index - 1));
                 cur_index = 0;
             } else if ('U'..='Y').contains(&ch) {
                 cur_index = 5 * cur_index + (ch as i32 - 'U' as i32 + 1) as usize;
             }
         }
-        proof_indeces
+        proof_indices
     }
 
     // fn print_stack(stack: &Vec<Statement>) {

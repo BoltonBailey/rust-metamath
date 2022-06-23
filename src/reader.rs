@@ -18,7 +18,7 @@ pub struct Tokens {
 
 //since statement may be used multiple times when applying substitution
 // use Rc
-pub type Statement = Rc<[LanguageToken]>; //may be better to newtype this but I guess it works for now
+pub type Statement = Rc<[LanguageToken]>; //may be better to new type this but I guess it works for now
 
 pub type Proof = Vec<Label>; //I don't think a proof is used multiple times
 pub type Label = Rc<str>;
@@ -37,7 +37,7 @@ impl Tokens {
         while self.token_buffer.is_empty() {
             //println!("Buffer is empty, refilling");
             let mut line = String::new();
-            // pretend this succeeeds
+            // pretend this succeeds
             let result = self.lines_buffer.last_mut().unwrap().read_line(&mut line);
             // println!("Read line: {}", line);
 
@@ -67,10 +67,10 @@ impl Tokens {
         // println!("In read file found token {:?}", token);
         while let Some("$[") = token.as_deref() {
             let filename = self.read().expect("Couldn't find filename");
-            let endbracket = self.read().expect("Coludn't find end bracket");
+            let end_bracket = self.read().expect("Couldn't find end bracket");
 
-            // println!("In read file found filename: {:?}, endbracket: {:?}", filename, endbracket);
-            if endbracket != "$]" {
+            // println!("In read file found filename: {:?}, end_bracket: {:?}", filename, end_bracket);
+            if end_bracket != "$]" {
                 panic!("End bracket not found");
             }
 
