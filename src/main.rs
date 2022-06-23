@@ -437,3 +437,5 @@ fn main() {
     let elapsed = now.elapsed();
     println!("Finished checking in {:.2?}", elapsed);
 }
+
+foo
