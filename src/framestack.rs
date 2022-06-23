@@ -141,7 +141,7 @@ impl FrameStack {
 
         let e_hyps: Vec<Statement> = self.list.iter().flat_map(|fr| fr.e.clone()).collect();
 
-        let chained = e_hyps.iter().chain(std::iter::once(&stat));
+        let chained = e_hyps.iter().chain(core::iter::once(&stat));
 
         let mut mand_vars: BTreeSet<LanguageToken> = chained
             .flat_map(|x| x.iter())
