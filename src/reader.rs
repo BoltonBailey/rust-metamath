@@ -1,15 +1,16 @@
+use alloc::collections::BTreeSet;
+use alloc::rc::Rc;
+
 use std::{
-    collections::HashSet,
     fs::File,
     io::{BufRead, BufReader},
-    rc::Rc,
 };
 
 #[derive(Debug)]
 pub struct Tokens {
     lines_buffer: Vec<BufReader<File>>,
     token_buffer: Vec<String>,
-    imported_files: HashSet<String>,
+    imported_files: BTreeSet<String>,
 }
 
 //since statement may be used multiple times when applying substitution
@@ -25,7 +26,7 @@ impl Tokens {
         Tokens {
             lines_buffer: vec![lines],
             token_buffer: vec![],
-            imported_files: HashSet::new(),
+            imported_files: BTreeSet::new(),
         }
     }
     pub fn read(&mut self) -> Option<String> {

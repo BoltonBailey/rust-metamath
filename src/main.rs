@@ -1,11 +1,17 @@
+#![no_std]
+
+extern crate alloc;
+
 mod framestack;
 mod reader;
-use std::ops::Deref;
+use core::ops::Deref;
 
-use std::collections::HashMap;
+use alloc::collections::BTreeMap;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
 use std::fs::File;
 use std::io::BufReader;
-use std::rc::Rc;
 
 use framestack::FrameStack;
 
@@ -26,7 +32,7 @@ enum LabelEntry {
 
 struct MM {
     fs: FrameStack,
-    labels: HashMap<Label, Rc<LabelEntry>>,
+    labels: BTreeMap<Label, Rc<LabelEntry>>,
     begin_label: Option<String>,
     stop_label: Option<String>,
 }
@@ -35,7 +41,7 @@ impl MM {
     fn new(begin_label: Option<String>, stop_label: Option<String>) -> MM {
         MM {
             fs: FrameStack::default(),
-            labels: HashMap::new(),
+            labels: BTreeMap::new(),
             begin_label,
             stop_label,
         }
@@ -114,7 +120,7 @@ impl MM {
                         self.begin_label = None;
                     }
                     if self.begin_label.is_none() {
-                        println!("verifying {}", label_u);
+                        // println!("verifying {}", label_u);
                         self.verify(label_u.clone(), stat.into(), proof.to_vec());
                     }
                     let data = LabelEntry::DollarP(self.fs.make_assertion(stat.into()));
@@ -143,7 +149,7 @@ impl MM {
     fn apply_subst(
         &self,
         stat: &Statement,
-        subst: &HashMap<LanguageToken, Statement>,
+        subst: &BTreeMap<LanguageToken, Statement>,
     ) -> Statement {
         let mut result: Vec<LanguageToken> = vec![];
 
@@ -185,7 +191,6 @@ impl MM {
         let compressed_proof = proof[ep + 1..].join("");
 
         let label_end = labels.len();
-
 
         let proof_indeces = Self::get_proof_indeces(compressed_proof);
         if proof_indeces.is_empty() {
@@ -236,7 +241,6 @@ impl MM {
                             let prev_statement = self.verify_assertion(a, &mut stack);
 
                             previous_proof = Some(prev_statement);
-
                         }
                         LabelEntry::DollarE(x) | LabelEntry::DollarF(x) => {
                             previous_proof = Some(Rc::clone(x));
@@ -329,7 +333,7 @@ impl MM {
             panic!("stack underflow")
         }
         let mut sp = sp;
-        let mut subst = HashMap::<LanguageToken, Statement>::new();
+        let mut subst = BTreeMap::<LanguageToken, Statement>::new();
 
         for (k, v) in mand_var {
             let entry: Statement = stack[sp].clone();
@@ -348,7 +352,6 @@ impl MM {
         for (x, y) in distinct {
             let x_vars = self.find_vars(Rc::clone(&subst[x]));
             let y_vars = self.find_vars(subst[y].clone());
-
 
             for x in &x_vars {
                 for y in &y_vars {

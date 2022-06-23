@@ -1,6 +1,8 @@
-use std::cmp::max;
-use std::cmp::min;
-use std::collections::{HashMap, HashSet, VecDeque};
+use alloc::collections::BTreeMap;
+use alloc::collections::BTreeSet;
+use alloc::collections::VecDeque;
+use core::cmp::max;
+use core::cmp::min;
 
 use crate::reader::Label;
 use crate::reader::LanguageToken;
@@ -8,13 +10,13 @@ use crate::reader::Statement;
 
 #[derive(Default, Debug)]
 pub struct Frame {
-    c: HashSet<LanguageToken>,
-    v: HashSet<LanguageToken>,
-    d: HashSet<(LanguageToken, LanguageToken)>, //maybe switch this give c and v different types
+    c: BTreeSet<LanguageToken>,
+    v: BTreeSet<LanguageToken>,
+    d: BTreeSet<(LanguageToken, LanguageToken)>, //maybe switch this give c and v different types
     f: Vec<(LanguageToken, LanguageToken)>,
-    f_labels: HashMap<LanguageToken, Label>,
+    f_labels: BTreeMap<LanguageToken, Label>,
     e: Vec<Statement>,
-    e_labels: HashMap<Statement, Label>,
+    e_labels: BTreeMap<Statement, Label>,
 }
 
 #[derive(Default, Debug)]
@@ -24,7 +26,7 @@ pub struct FrameStack {
 
 #[derive(Debug)]
 pub struct Assertion {
-    pub dvs: HashSet<(LanguageToken, LanguageToken)>,
+    pub dvs: BTreeSet<(LanguageToken, LanguageToken)>,
     pub f_hyps: VecDeque<(LanguageToken, LanguageToken)>,
     pub e_hyps: Vec<Statement>,
     pub stat: Statement,
@@ -140,7 +142,7 @@ impl FrameStack {
 
         let chained = e_hyps.iter().chain(std::iter::once(&stat));
 
-        let mut mand_vars: HashSet<LanguageToken> = chained
+        let mut mand_vars: BTreeSet<LanguageToken> = chained
             .flat_map(|x| x.iter())
             .filter(|tok| self.lookup_v(tok))
             .cloned()
@@ -148,7 +150,7 @@ impl FrameStack {
 
         // println!("ma: \n mand_vars: {:?}, ", mand_vars);
 
-        let mut cartesian: HashSet<(LanguageToken, LanguageToken)> = HashSet::new();
+        let mut cartesian: BTreeSet<(LanguageToken, LanguageToken)> = BTreeSet::new();
 
         for x in mand_vars.iter() {
             for y in mand_vars.iter() {
@@ -156,7 +158,7 @@ impl FrameStack {
             }
         }
 
-        let dvs: HashSet<(LanguageToken, LanguageToken)> = self
+        let dvs: BTreeSet<(LanguageToken, LanguageToken)> = self
             .list
             .iter()
             .flat_map(|fr| fr.d.intersection(&cartesian))
