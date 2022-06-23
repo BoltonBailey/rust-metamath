@@ -48,7 +48,8 @@ impl MM {
         }
     }
 
-    fn read(&mut self, tokens: &mut Tokens) {
+    /// Returns true if exited process with
+    fn read(&mut self, tokens: &mut Tokens) -> bool {
         // println!("Starting function read");
         self.fs.push();
         let mut label: Option<String> = None;
@@ -84,7 +85,7 @@ impl MM {
                 Some("$a") => {
                     let label_u = label.expect("$a must have a label");
                     match &self.stop_label {
-                        Some(a) if a == &label_u => std::process::exit(0),
+                        Some(a) if a == &label_u => return true,
                         _ => {}
                     }
 
@@ -106,7 +107,7 @@ impl MM {
                     let label_u = label.clone().expect("$p must have elabel");
                     if label == self.stop_label {
                         //could be rewritten better
-                        std::process::exit(0);
+                        return true;
                     }
                     let stat = tokens.read_statement();
                     let i = stat
@@ -132,7 +133,10 @@ impl MM {
                     self.fs.add_d(tokens.read_statement());
                 }
                 Some("${") => {
-                    self.read(tokens);
+                    let out = self.read(tokens);
+                    if out {
+                        return true;
+                    }
                 }
                 Some(x) if !x.starts_with('$') => {
                     label = tok;
@@ -145,6 +149,7 @@ impl MM {
             tok = tokens.read_comment();
         }
         self.fs.list.pop();
+        false
     }
 
     fn apply_subst(
@@ -415,9 +420,9 @@ impl MM {
         }
     }
 
-    fn dump(&mut self) {
-        // println!("{:?}", self.labels);
-    }
+    // fn dump(&mut self) {
+    //     // println!("{:?}", self.labels);
+    // }
 }
 fn main() {
     // println!("Starting proof verification");
@@ -434,7 +439,7 @@ fn main() {
     let now = Instant::now();
 
     mm.read(&mut Tokens::new(BufReader::new(file)));
-    mm.dump();
+    // mm.dump();
     let elapsed = now.elapsed();
     // println!("Finished checking in {:.2?}", elapsed);
 }
