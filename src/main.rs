@@ -11,6 +11,7 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::ops::Deref;
+use reader::FileSimulator;
 use std::fs::File;
 use std::io::BufReader;
 
@@ -49,27 +50,27 @@ impl MM {
     }
 
     /// Returns true if did not exit
-    fn read(&mut self, tokens: &mut Tokens) -> bool {
+    fn read(&mut self, tokens: &mut Tokens, fs: FileSimulator) -> bool {
         // println!("Starting function read");
         self.fs.push();
         let mut label: Option<String> = None;
-        let mut tok = tokens.read_comment();
+        let mut tok = tokens.read_comment(fs);
         // println!("In MM read, found token to be {:?}", tok);
         loop {
             match tok.as_deref() {
                 Some("$}") => break,
                 Some("$c") => {
-                    for tok in tokens.read_statement().iter() {
+                    for tok in tokens.read_statement(fs).iter() {
                         self.fs.add_c(tok.clone());
                     }
                 }
                 Some("$v") => {
-                    for tok in tokens.read_statement().iter() {
+                    for tok in tokens.read_statement(fs).iter() {
                         self.fs.add_v(tok.clone());
                     }
                 }
                 Some("$f") => {
-                    let stat = tokens.read_statement();
+                    let stat = tokens.read_statement(fs);
                     let label_u: Label = label.expect("$f must have a label").into();
                     if stat.len() != 2 {
                         panic!("$f must have length 2");
@@ -89,7 +90,8 @@ impl MM {
                         _ => {}
                     }
 
-                    let data = LabelEntry::DollarA(self.fs.make_assertion(tokens.read_statement()));
+                    let data =
+                        LabelEntry::DollarA(self.fs.make_assertion(tokens.read_statement(fs)));
                     self.labels.insert(label_u.into(), Rc::new(data));
                     label = None;
                 }
@@ -97,7 +99,7 @@ impl MM {
                 Some("$e") => {
                     let label_u: Label = label.expect("e must have label").into();
 
-                    let stat = tokens.read_statement();
+                    let stat = tokens.read_statement(fs);
                     self.fs.add_e(stat.clone(), label_u.clone());
                     let data = LabelEntry::DollarE(stat);
                     self.labels.insert(label_u.clone(), Rc::new(data));
@@ -109,7 +111,7 @@ impl MM {
                         //could be rewritten better
                         return false;
                     }
-                    let stat = tokens.read_statement();
+                    let stat = tokens.read_statement(fs);
                     let i = stat
                         .iter()
                         .position(|x| x.as_ref() == "$=")
@@ -130,10 +132,10 @@ impl MM {
                     label = None;
                 }
                 Some("$d") => {
-                    self.fs.add_d(tokens.read_statement());
+                    self.fs.add_d(tokens.read_statement(fs));
                 }
                 Some("${") => {
-                    let out = self.read(tokens);
+                    let out = self.read(tokens, fs);
                     if out == false {
                         return false;
                     }
@@ -146,7 +148,7 @@ impl MM {
                 }
                 None => break,
             }
-            tok = tokens.read_comment();
+            tok = tokens.read_comment(fs);
         }
         self.fs.list.pop();
         true

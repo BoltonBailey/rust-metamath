@@ -1,19 +1,24 @@
-use alloc::collections::BTreeSet;
+use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use std::{
-    fs::File,
-    io::{BufRead, BufReader},
-};
+// use std::{
+//     fs::File,
+//     io::{BufRead, BufReader},
+// };
 
 #[derive(Debug)]
 pub struct Tokens {
-    lines_buffer: Vec<BufReader<File>>,
+    lines_buffer: Vec<String>,
     token_buffer: Vec<String>,
     imported_files: BTreeSet<String>,
+}
+
+/// A simple simulator for a file system, keys are filenames, values are file contents
+pub struct FileSimulator {
+    contents: BTreeMap<String, Vec<String>>,
 }
 
 //since statement may be used multiple times when applying substitution
@@ -25,9 +30,9 @@ pub type Label = Rc<str>;
 pub type LanguageToken = Rc<str>;
 
 impl Tokens {
-    pub fn new(lines: BufReader<File>) -> Tokens {
+    pub fn new(lines: Vec<String>) -> Tokens {
         Tokens {
-            lines_buffer: vec![lines],
+            lines_buffer: lines,
             token_buffer: vec![],
             imported_files: BTreeSet::new(),
         }
@@ -36,13 +41,14 @@ impl Tokens {
         // println!("inside read function with state {:?}", self);
         while self.token_buffer.is_empty() {
             //println!("Buffer is empty, refilling");
-            let mut line = String::new();
+            // let mut line = String::new();
             // pretend this succeeds
-            let result = self.lines_buffer.last_mut().unwrap().read_line(&mut line);
+            // let result = self.lines_buffer.last_mut().unwrap().read_line(&mut line);
+            let result = self.lines_buffer.pop();
             // println!("Read line: {}", line);
 
             match result {
-                Ok(num) if num > 0 => {
+                Some(line) => {
                     // println!("Read {} lines ", num);
                     self.token_buffer = line.split_whitespace().map(|x| x.into()).collect();
                     self.token_buffer.reverse();
@@ -60,7 +66,7 @@ impl Tokens {
         self.token_buffer.pop()
     }
 
-    fn read_file(&mut self) -> Option<String> {
+    fn read_file(&mut self, fs: FileSimulator) -> Option<String> {
         // println!("reading file");
 
         let mut token = self.read();
@@ -77,9 +83,8 @@ impl Tokens {
             if !self.imported_files.contains(&filename) {
                 // println!("Found new file {}", &filename);
 
-                self.lines_buffer.push(BufReader::new(
-                    File::open(filename.clone()).expect("Failed to open file"),
-                ));
+                self.lines_buffer
+                    .extend(fs.contents.get(&filename).expect("Should unwrap").clone());
                 self.imported_files.insert(filename);
             }
             token = self.read();
@@ -87,11 +92,11 @@ impl Tokens {
         token
     }
 
-    pub fn read_comment(&mut self) -> Option<String> {
+    pub fn read_comment(&mut self, fs: FileSimulator) -> Option<String> {
         // println!("reading comment");
 
         loop {
-            let mut token = self.read_file();
+            let mut token = self.read_file(fs);
             // println!("In read comment: found token to be {:?}", token);
             match &token {
                 None => return None,
@@ -106,16 +111,16 @@ impl Tokens {
         }
     }
 
-    pub fn read_statement(&mut self) -> Statement {
+    pub fn read_statement(&mut self, fs: FileSimulator) -> Statement {
         let mut stat: Vec<Rc<str>> = vec![];
         let mut token = self
-            .read_comment()
+            .read_comment(fs)
             .expect("Failed to read token in read stat");
 
         // println!("In read stat, found token to be {:?}", token);
         while token != "$." {
             stat.push(token.into());
-            token = self.read_comment().expect("EOF before $.");
+            token = self.read_comment(fs).expect("EOF before $.");
         }
         stat.into()
     }
