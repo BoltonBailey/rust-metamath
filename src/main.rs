@@ -50,27 +50,27 @@ impl MM {
     }
 
     /// Returns true if did not exit
-    fn read(&mut self, tokens: &mut Tokens, fs: FileSimulator) -> bool {
+    fn read(&mut self, tokens: &mut Tokens, fileSim: FileSimulator) -> bool {
         // println!("Starting function read");
         self.fs.push();
         let mut label: Option<String> = None;
-        let mut tok = tokens.read_comment(fs);
+        let mut tok = tokens.read_comment(fileSim);
         // println!("In MM read, found token to be {:?}", tok);
         loop {
             match tok.as_deref() {
                 Some("$}") => break,
                 Some("$c") => {
-                    for tok in tokens.read_statement(fs).iter() {
+                    for tok in tokens.read_statement(fileSim).iter() {
                         self.fs.add_c(tok.clone());
                     }
                 }
                 Some("$v") => {
-                    for tok in tokens.read_statement(fs).iter() {
+                    for tok in tokens.read_statement(fileSim).iter() {
                         self.fs.add_v(tok.clone());
                     }
                 }
                 Some("$f") => {
-                    let stat = tokens.read_statement(fs);
+                    let stat = tokens.read_statement(fileSim);
                     let label_u: Label = label.expect("$f must have a label").into();
                     if stat.len() != 2 {
                         panic!("$f must have length 2");
@@ -91,7 +91,7 @@ impl MM {
                     }
 
                     let data =
-                        LabelEntry::DollarA(self.fs.make_assertion(tokens.read_statement(fs)));
+                        LabelEntry::DollarA(self.fs.make_assertion(tokens.read_statement(fileSim)));
                     self.labels.insert(label_u.into(), Rc::new(data));
                     label = None;
                 }
@@ -99,7 +99,7 @@ impl MM {
                 Some("$e") => {
                     let label_u: Label = label.expect("e must have label").into();
 
-                    let stat = tokens.read_statement(fs);
+                    let stat = tokens.read_statement(fileSim);
                     self.fs.add_e(stat.clone(), label_u.clone());
                     let data = LabelEntry::DollarE(stat);
                     self.labels.insert(label_u.clone(), Rc::new(data));
@@ -111,7 +111,7 @@ impl MM {
                         //could be rewritten better
                         return false;
                     }
-                    let stat = tokens.read_statement(fs);
+                    let stat = tokens.read_statement(fileSim);
                     let i = stat
                         .iter()
                         .position(|x| x.as_ref() == "$=")
@@ -132,10 +132,10 @@ impl MM {
                     label = None;
                 }
                 Some("$d") => {
-                    self.fs.add_d(tokens.read_statement(fs));
+                    self.fs.add_d(tokens.read_statement(fileSim));
                 }
                 Some("${") => {
-                    let out = self.read(tokens, fs);
+                    let out = self.read(tokens, fileSim);
                     if out == false {
                         return false;
                     }
@@ -148,7 +148,7 @@ impl MM {
                 }
                 None => break,
             }
-            tok = tokens.read_comment(fs);
+            tok = tokens.read_comment(fileSim);
         }
         self.fs.list.pop();
         true
@@ -429,19 +429,25 @@ impl MM {
 fn main() {
     // println!("Starting proof verification");
 
-    let args: Vec<String> = std::env::args().collect();
+    // let args: Vec<String> = std::env::args().collect();
 
     // println!("Got cmd arguments {:?}", args);
 
-    let mut mm = MM::new(args.get(2).cloned(), args.get(3).cloned());
+    // Begin and stop were passed as args 2 and 3, not necessary
+    let begin: Option<String> = None;
+    let stop: Option<String> = None;
 
-    let file = File::open(args[1].clone()).expect("Failed to find file");
+    let mut mm = MM::new(begin, stop);
+
+    // let file = File::open(args[1].clone()).expect("Failed to find file");
     // println!("Found file name {:?}", args[1]);
-    use std::time::Instant;
-    let now = Instant::now();
+    // use std::time::Instant;
+    // let now = Instant::now();
+    let file_lines: Vec<String> = vec![]; // TODO initialize
+    let fileSim: FileSimulator; // TODO initialize
 
-    let out = mm.read(&mut Tokens::new(BufReader::new(file)));
+    let out = mm.read(&mut Tokens::new(file_lines), fileSim);
     // mm.dump();
-    let elapsed = now.elapsed();
-    println!("Finished checking in {:.2?} {}", elapsed, out);
+    // let elapsed = now.elapsed();
+    // println!("Finished checking in {:.2?} {}", elapsed, out);
 }

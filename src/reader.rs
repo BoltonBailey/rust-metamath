@@ -66,7 +66,7 @@ impl Tokens {
         self.token_buffer.pop()
     }
 
-    fn read_file(&mut self, fs: FileSimulator) -> Option<String> {
+    fn read_file(&mut self, fileSim: FileSimulator) -> Option<String> {
         // println!("reading file");
 
         let mut token = self.read();
@@ -83,8 +83,13 @@ impl Tokens {
             if !self.imported_files.contains(&filename) {
                 // println!("Found new file {}", &filename);
 
-                self.lines_buffer
-                    .extend(fs.contents.get(&filename).expect("Should unwrap").clone());
+                self.lines_buffer.extend(
+                    fileSim
+                        .contents
+                        .get(&filename)
+                        .expect("Should unwrap")
+                        .clone(),
+                );
                 self.imported_files.insert(filename);
             }
             token = self.read();
@@ -92,11 +97,11 @@ impl Tokens {
         token
     }
 
-    pub fn read_comment(&mut self, fs: FileSimulator) -> Option<String> {
+    pub fn read_comment(&mut self, fileSim: FileSimulator) -> Option<String> {
         // println!("reading comment");
 
         loop {
-            let mut token = self.read_file(fs);
+            let mut token = self.read_file(fileSim);
             // println!("In read comment: found token to be {:?}", token);
             match &token {
                 None => return None,
@@ -111,16 +116,16 @@ impl Tokens {
         }
     }
 
-    pub fn read_statement(&mut self, fs: FileSimulator) -> Statement {
+    pub fn read_statement(&mut self, fileSim: FileSimulator) -> Statement {
         let mut stat: Vec<Rc<str>> = vec![];
         let mut token = self
-            .read_comment(fs)
+            .read_comment(fileSim)
             .expect("Failed to read token in read stat");
 
         // println!("In read stat, found token to be {:?}", token);
         while token != "$." {
             stat.push(token.into());
-            token = self.read_comment(fs).expect("EOF before $.");
+            token = self.read_comment(fileSim).expect("EOF before $.");
         }
         stat.into()
     }
