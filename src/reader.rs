@@ -21,6 +21,12 @@ pub struct FileSimulator {
     contents: BTreeMap<String, Vec<String>>,
 }
 
+impl FileSimulator {
+    pub fn new(map: BTreeMap<String, Vec<String>>) -> FileSimulator {
+        FileSimulator { contents: map }
+    }
+}
+
 //since statement may be used multiple times when applying substitution
 // use Rc
 pub type Statement = Rc<[LanguageToken]>; //may be better to new type this but I guess it works for now
@@ -66,7 +72,7 @@ impl Tokens {
         self.token_buffer.pop()
     }
 
-    fn read_file(&mut self, fileSim: FileSimulator) -> Option<String> {
+    fn read_file(&mut self, file_sim: &FileSimulator) -> Option<String> {
         // println!("reading file");
 
         let mut token = self.read();
@@ -84,7 +90,7 @@ impl Tokens {
                 // println!("Found new file {}", &filename);
 
                 self.lines_buffer.extend(
-                    fileSim
+                    file_sim
                         .contents
                         .get(&filename)
                         .expect("Should unwrap")
@@ -97,11 +103,11 @@ impl Tokens {
         token
     }
 
-    pub fn read_comment(&mut self, fileSim: FileSimulator) -> Option<String> {
+    pub fn read_comment(&mut self, file_sim: &FileSimulator) -> Option<String> {
         // println!("reading comment");
 
         loop {
-            let mut token = self.read_file(fileSim);
+            let mut token = self.read_file(file_sim);
             // println!("In read comment: found token to be {:?}", token);
             match &token {
                 None => return None,
@@ -116,16 +122,16 @@ impl Tokens {
         }
     }
 
-    pub fn read_statement(&mut self, fileSim: FileSimulator) -> Statement {
+    pub fn read_statement(&mut self, file_sim: &FileSimulator) -> Statement {
         let mut stat: Vec<Rc<str>> = vec![];
         let mut token = self
-            .read_comment(fileSim)
+            .read_comment(file_sim)
             .expect("Failed to read token in read stat");
 
         // println!("In read stat, found token to be {:?}", token);
         while token != "$." {
             stat.push(token.into());
-            token = self.read_comment(fileSim).expect("EOF before $.");
+            token = self.read_comment(file_sim).expect("EOF before $.");
         }
         stat.into()
     }
