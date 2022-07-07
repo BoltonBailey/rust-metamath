@@ -4,14 +4,14 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use std::{
-    fs::File,
-    io::{BufRead, BufReader},
-};
+// use std::{
+//     fs::File,
+//     io::{BufRead, BufReader},
+// };
 
 #[derive(Debug)]
 pub struct Tokens {
-    lines_buffer: Vec<BufReader<File>>,
+    lines_buffer: Vec<String>,
     token_buffer: Vec<String>,
     imported_files: BTreeSet<String>,
 }
@@ -25,9 +25,9 @@ pub type Label = Rc<str>;
 pub type LanguageToken = Rc<str>;
 
 impl Tokens {
-    pub fn new(lines: BufReader<File>) -> Tokens {
+    pub fn new(lines: Vec<String>) -> Tokens {
         Tokens {
-            lines_buffer: vec![lines],
+            lines_buffer: lines,
             token_buffer: vec![],
             imported_files: BTreeSet::new(),
         }
@@ -36,13 +36,14 @@ impl Tokens {
         // println!("inside read function with state {:?}", self);
         while self.token_buffer.is_empty() {
             //println!("Buffer is empty, refilling");
-            let mut line = String::new();
+            // let mut line = String::new();
             // pretend this succeeds
-            let result = self.lines_buffer.last_mut().unwrap().read_line(&mut line);
+            // let result = self.lines_buffer.last_mut().unwrap().read_line(&mut line);
+            let result = self.lines_buffer.pop();
             // println!("Read line: {}", line);
 
             match result {
-                Ok(num) if num > 0 => {
+                Some(line) => {
                     // println!("Read {} lines ", num);
                     self.token_buffer = line.split_whitespace().map(|x| x.into()).collect();
                     self.token_buffer.reverse();
@@ -77,10 +78,11 @@ impl Tokens {
             if !self.imported_files.contains(&filename) {
                 // println!("Found new file {}", &filename);
 
-                self.lines_buffer.push(BufReader::new(
-                    File::open(filename.clone()).expect("Failed to open file"),
-                ));
-                self.imported_files.insert(filename);
+                panic!("Doesn't currently support multiple files at once");
+                // self.lines_buffer.push(BufReader::new(
+                //     File::open(filename.clone()).expect("Failed to open file"),
+                // ));
+                // self.imported_files.insert(filename);
             }
             token = self.read();
         }

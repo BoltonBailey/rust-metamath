@@ -12,6 +12,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::ops::Deref;
 use std::fs::File;
+use std::io::BufRead;
 use std::io::BufReader;
 
 use framestack::FrameStack;
@@ -399,6 +400,7 @@ impl MM {
         }
 
         for label in proof {
+            // println!("label {:?}", label);
             let stepdat = Rc::clone(&self.labels[&label]);
             // println!("{:?} : {:?}", label, self.labels[&label]);
 
@@ -434,11 +436,20 @@ fn check_file(path_string: String) -> bool {
     use std::time::Instant;
     let now = Instant::now();
 
-    let out = mm.read(&mut Tokens::new(BufReader::new(file)));
+    let file_lines: Vec<String> = BufReader::new(file)
+        .lines()
+        .map(|l| l.expect("Could not parse line"))
+        .collect(); // TODO initialize
+
+    // for line in &file_lines {
+    //     println!("line: {}", line);
+    // }
+
+    let out = mm.read(&mut Tokens::new(file_lines));
     // mm.dump();
     let elapsed = now.elapsed();
-    println!("Finished checking in {:.2?}", elapsed);
-    true
+    println!("Finished checking in {:.2?}, with result {}", elapsed, out);
+    out
 }
 
 fn main() {
