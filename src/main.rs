@@ -1,4 +1,4 @@
-#![no_std]
+// #![no_std]
 
 extern crate alloc;
 
@@ -424,16 +424,12 @@ impl MM {
     //     // println!("{:?}", self.labels);
     // }
 }
-fn main() {
-    // println!("Starting proof verification");
 
-    let args: Vec<String> = std::env::args().collect();
+/// Checks a single file with no imports, given as a path string. Returns whether is succeeded
+fn check_file(path_string: String) -> bool {
+    let mut mm = MM::new(None, None);
 
-    // println!("Got cmd arguments {:?}", args);
-
-    let mut mm = MM::new(args.get(2).cloned(), args.get(3).cloned());
-
-    let file = File::open(args[1].clone()).expect("Failed to find file");
+    let file = File::open(path_string.clone()).expect("Failed to find file");
     // println!("Found file name {:?}", args[1]);
     use std::time::Instant;
     let now = Instant::now();
@@ -441,5 +437,34 @@ fn main() {
     mm.read(&mut Tokens::new(BufReader::new(file)));
     // mm.dump();
     let elapsed = now.elapsed();
-    // println!("Finished checking in {:.2?}", elapsed);
+    println!("Finished checking in {:.2?}", elapsed);
+    true
+}
+
+fn main() {
+    // println!("Starting proof verification");
+
+    let args: Vec<String> = std::env::args().collect();
+
+    // println!("Got cmd arguments {:?}", args);
+    check_file(args[1].clone());
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::check_file;
+
+    #[test]
+    #[should_panic]
+    fn broken_file_breaks() {
+        check_file("theory/matching-logic-propositional-one-file-broken.mm".to_string());
+    }
+
+    #[test]
+    fn unbroken_file_passes() {
+        assert_eq!(
+            check_file("theory/matching-logic-propositional-one-file.mm".to_string()),
+            true
+        );
+    }
 }
