@@ -48,7 +48,7 @@ impl MM {
         }
     }
 
-    /// Returns true if exited process with
+    /// Returns true if did not exit
     fn read(&mut self, tokens: &mut Tokens) -> bool {
         // println!("Starting function read");
         self.fs.push();
@@ -85,7 +85,7 @@ impl MM {
                 Some("$a") => {
                     let label_u = label.expect("$a must have a label");
                     match &self.stop_label {
-                        Some(a) if a == &label_u => return true,
+                        Some(a) if a == &label_u => return false,
                         _ => {}
                     }
 
@@ -107,7 +107,7 @@ impl MM {
                     let label_u = label.clone().expect("$p must have elabel");
                     if label == self.stop_label {
                         //could be rewritten better
-                        return true;
+                        return false;
                     }
                     let stat = tokens.read_statement();
                     let i = stat
@@ -134,8 +134,8 @@ impl MM {
                 }
                 Some("${") => {
                     let out = self.read(tokens);
-                    if out {
-                        return true;
+                    if out == false {
+                        return false;
                     }
                 }
                 Some(x) if !x.starts_with('$') => {
@@ -149,7 +149,7 @@ impl MM {
             tok = tokens.read_comment();
         }
         self.fs.list.pop();
-        false
+        true
     }
 
     fn apply_subst(
@@ -434,7 +434,7 @@ fn check_file(path_string: String) -> bool {
     use std::time::Instant;
     let now = Instant::now();
 
-    mm.read(&mut Tokens::new(BufReader::new(file)));
+    let out = mm.read(&mut Tokens::new(BufReader::new(file)));
     // mm.dump();
     let elapsed = now.elapsed();
     println!("Finished checking in {:.2?}", elapsed);
