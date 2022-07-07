@@ -1,4 +1,5 @@
 use alloc::collections::BTreeSet;
+use alloc::collections::VecDeque;
 use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec;
@@ -11,7 +12,7 @@ use alloc::vec::Vec;
 
 #[derive(Debug)]
 pub struct Tokens {
-    lines_buffer: Vec<String>,
+    lines_buffer: VecDeque<String>,
     token_buffer: Vec<String>,
     imported_files: BTreeSet<String>,
 }
@@ -27,7 +28,7 @@ pub type LanguageToken = Rc<str>;
 impl Tokens {
     pub fn new(lines: Vec<String>) -> Tokens {
         Tokens {
-            lines_buffer: lines,
+            lines_buffer: VecDeque::from(lines),
             token_buffer: vec![],
             imported_files: BTreeSet::new(),
         }
@@ -39,7 +40,7 @@ impl Tokens {
             // let mut line = String::new();
             // pretend this succeeds
             // let result = self.lines_buffer.last_mut().unwrap().read_line(&mut line);
-            let result = self.lines_buffer.pop();
+            let result = self.lines_buffer.pop_front();
             // println!("Read line: {}", line);
 
             match result {
@@ -50,7 +51,7 @@ impl Tokens {
                 }
                 _ => {
                     // println!("Done with file");
-                    self.lines_buffer.pop();
+                    self.lines_buffer.pop_front();
                     if self.lines_buffer.is_empty() {
                         return None;
                     }

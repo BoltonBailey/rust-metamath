@@ -428,28 +428,34 @@ impl MM {
 }
 
 /// Checks a single file with no imports, given as a path string. Returns whether is succeeded
-fn check_file(path_string: String) -> bool {
+fn check_string_vector(lines: Vec<String>) -> bool {
     let mut mm = MM::new(None, None);
 
-    let file = File::open(path_string.clone()).expect("Failed to find file");
     // println!("Found file name {:?}", args[1]);
     use std::time::Instant;
     let now = Instant::now();
+
+    // for line in &file_lines {
+    //     println!("line: {}", line);
+    // }
+
+    let out = mm.read(&mut Tokens::new(lines));
+    // mm.dump();
+    let elapsed = now.elapsed();
+    println!("Finished checking in {:.2?}, with result {}", elapsed, out);
+    out
+}
+
+/// Checks a single file with no imports, given as a path string. Returns whether is succeeded
+fn check_file(path_string: String) -> bool {
+    let file = File::open(path_string.clone()).expect("Failed to find file");
 
     let file_lines: Vec<String> = BufReader::new(file)
         .lines()
         .map(|l| l.expect("Could not parse line"))
         .collect(); // TODO initialize
 
-    // for line in &file_lines {
-    //     println!("line: {}", line);
-    // }
-
-    let out = mm.read(&mut Tokens::new(file_lines));
-    // mm.dump();
-    let elapsed = now.elapsed();
-    println!("Finished checking in {:.2?}, with result {}", elapsed, out);
-    out
+    check_string_vector(file_lines)
 }
 
 fn main() {
