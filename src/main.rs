@@ -2,8 +2,6 @@
 
 extern crate alloc;
 
-mod framestack;
-mod reader;
 use crate::alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
@@ -15,12 +13,308 @@ use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 
-use framestack::FrameStack;
+// use alloc::collections::BTreeMap;
+use alloc::collections::BTreeSet;
+use alloc::collections::VecDeque;
+// use alloc::vec::Vec;
+use core::cmp::max;
+use core::cmp::min;
 
-use crate::framestack::Assertion;
-use crate::reader::Label;
-use crate::reader::Statement;
-use crate::reader::{LanguageToken, Proof, Tokens};
+// use std::{
+//     fs::File,
+//     io::{BufRead, BufReader},
+// };
+
+#[derive(Debug)]
+pub struct Tokens {
+    lines_buffer: VecDeque<String>,
+    token_buffer: Vec<String>,
+    imported_files: BTreeSet<String>,
+}
+
+//since statement may be used multiple times when applying substitution
+// use Rc
+pub type Statement = Rc<[LanguageToken]>; //may be better to new type this but I guess it works for now
+
+pub type Proof = Vec<Label>; //I don't think a proof is used multiple times
+pub type Label = Rc<str>;
+pub type LanguageToken = Rc<str>;
+
+impl Tokens {
+    pub fn new(lines: Vec<String>) -> Tokens {
+        Tokens {
+            lines_buffer: VecDeque::from(lines),
+            token_buffer: vec![],
+            imported_files: BTreeSet::new(),
+        }
+    }
+    pub fn read(&mut self) -> Option<String> {
+        // println!("inside read function with state {:?}", self);
+        while self.token_buffer.is_empty() {
+            //println!("Buffer is empty, refilling");
+            // let mut line = String::new();
+            // pretend this succeeds
+            // let result = self.lines_buffer.last_mut().unwrap().read_line(&mut line);
+            let result = self.lines_buffer.pop_front();
+            // println!("Read line: {}", line);
+
+            match result {
+                Some(line) => {
+                    // println!("Read {} lines ", num);
+                    self.token_buffer = line.split_whitespace().map(|x| x.into()).collect();
+                    self.token_buffer.reverse();
+                }
+                _ => {
+                    // println!("Done with file");
+                    self.lines_buffer.pop_front();
+                    if self.lines_buffer.is_empty() {
+                        return None;
+                    }
+                }
+            }
+            // println!("Created token buffer {:?}", self.token_buffer);
+        }
+        self.token_buffer.pop()
+    }
+
+    fn read_file(&mut self) -> Option<String> {
+        // println!("reading file");
+
+        let mut token = self.read();
+        // println!("In read file found token {:?}", token);
+        while let Some("$[") = token.as_deref() {
+            let filename = self.read().expect("Couldn't find filename");
+            let end_bracket = self.read().expect("Couldn't find end bracket");
+
+            // println!("In read file found filename: {:?}, end_bracket: {:?}", filename, end_bracket);
+            if end_bracket != "$]" {
+                panic!("End bracket not found");
+            }
+
+            if !self.imported_files.contains(&filename) {
+                // println!("Found new file {}", &filename);
+
+                panic!("Doesn't currently support multiple files at once");
+                // self.lines_buffer.push(BufReader::new(
+                //     File::open(filename.clone()).expect("Failed to open file"),
+                // ));
+                // self.imported_files.insert(filename);
+            }
+            token = self.read();
+        }
+        token
+    }
+
+    pub fn read_comment(&mut self) -> Option<String> {
+        // println!("reading comment");
+
+        loop {
+            let mut token = self.read_file();
+            // println!("In read comment: found token to be {:?}", token);
+            match &token {
+                None => return None,
+                Some(x) if x == "$(" => loop {
+                    match token.as_deref() {
+                        Some("$)") => break,
+                        _ => token = self.read(),
+                    }
+                },
+                _ => return token,
+            }
+        }
+    }
+
+    pub fn read_statement(&mut self) -> Statement {
+        let mut stat: Vec<Rc<str>> = vec![];
+        let mut token = self
+            .read_comment()
+            .expect("Failed to read token in read stat");
+
+        // println!("In read stat, found token to be {:?}", token);
+        while token != "$." {
+            stat.push(token.into());
+            token = self.read_comment().expect("EOF before $.");
+        }
+        stat.into()
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct Frame {
+    c: BTreeSet<LanguageToken>,
+    v: BTreeSet<LanguageToken>,
+    d: BTreeSet<(LanguageToken, LanguageToken)>, //maybe switch this give c and v different types
+    f: Vec<(LanguageToken, LanguageToken)>,
+    f_labels: BTreeMap<LanguageToken, Label>,
+    e: Vec<Statement>,
+    e_labels: BTreeMap<Statement, Label>,
+}
+
+#[derive(Default, Debug)]
+pub struct FrameStack {
+    pub list: Vec<Frame>,
+}
+
+#[derive(Debug)]
+pub struct Assertion {
+    pub dvs: BTreeSet<(LanguageToken, LanguageToken)>,
+    pub f_hyps: VecDeque<(LanguageToken, LanguageToken)>,
+    pub e_hyps: Vec<Statement>,
+    pub stat: Statement,
+}
+
+impl FrameStack {
+    pub fn push(&mut self) {
+        self.list.push(Frame::default());
+    }
+
+    pub fn add_c(&mut self, token: LanguageToken) {
+        let frame = &mut self.list.last_mut().unwrap();
+
+        if frame.c.contains(&token) {
+            panic!("Const already defined")
+        }
+        if frame.v.contains(&token) {
+            panic!("consta elaryd defined as var in scope")
+        }
+        frame.c.insert(token);
+    }
+
+    pub fn add_v(&mut self, token: LanguageToken) {
+        let frame = &mut self.list.last_mut().unwrap();
+
+        if frame.c.contains(&token) {
+            panic!("Variable already defined")
+        }
+        if frame.v.contains(&token) {
+            panic!("Variable elaryd defined as var in scope")
+        }
+        frame.v.insert(token);
+    }
+
+    pub fn add_f(&mut self, var: LanguageToken, kind: LanguageToken, label: Label) {
+        if !self.lookup_v(&var) {
+            panic!("var not defined")
+        }
+        if !self.lookup_c(&kind) {
+            panic!("const not defined")
+        }
+
+        let frame = self.list.last_mut().unwrap();
+        if frame.f_labels.contains_key(&var) {
+            panic!("f already defined in scope")
+        }
+        frame.f.push((var.clone(), kind));
+        frame.f_labels.insert(var, label);
+    }
+
+    pub fn add_e(&mut self, stat: Statement, label: Label) {
+        let frame = self.list.last_mut().unwrap();
+
+        frame.e.push(stat.clone());
+        frame.e_labels.insert(stat, label);
+    }
+
+    pub fn add_d(&mut self, stat: Statement) {
+        let frame = self.list.last_mut().unwrap();
+        //let mut product_vec = vec!();
+        for x in stat.iter() {
+            for y in stat.iter() {
+                if x != y {
+                    frame
+                        .d
+                        .insert((min(x.clone(), y.clone()), max(x.clone(), y.clone())));
+                }
+            }
+        }
+    }
+
+    pub fn lookup_c(&self, token: &str) -> bool {
+        self.list.iter().rev().any(|fr| fr.c.contains(token))
+    }
+
+    pub fn lookup_v(&self, token: &str) -> bool {
+        self.list.iter().rev().any(|fr| fr.v.contains(token))
+    }
+
+    pub fn lookup_f(&self, var: LanguageToken) -> Label {
+        // println!("lookup {}", var);
+        let f = self
+            .list
+            .iter()
+            .rev()
+            .find(|frame| frame.f_labels.contains_key(&var))
+            .unwrap();
+
+        f.f_labels[&var].clone()
+    }
+
+    pub fn lookup_d(&self, x: LanguageToken, y: LanguageToken) -> bool {
+        self.list.iter().rev().any(|fr| {
+            fr.d.contains(&(min(x.clone(), y.clone()), max(x.clone(), y.clone())))
+        })
+    }
+
+    pub fn lookup_e(&self, stmt: Statement) -> Label {
+        let f = self
+            .list
+            .iter()
+            .rev()
+            .find(|frame| frame.e_labels.contains_key(&stmt))
+            .expect("Bad e");
+
+        f.e_labels[&stmt].clone()
+    }
+
+    pub fn make_assertion(&self, stat: Statement) -> Assertion {
+        //let _frame = self.list.last_mut().unwrap();
+
+        let e_hyps: Vec<Statement> = self.list.iter().flat_map(|fr| fr.e.clone()).collect();
+
+        let chained = e_hyps.iter().chain(core::iter::once(&stat));
+
+        let mut mand_vars: BTreeSet<LanguageToken> = chained
+            .flat_map(|x| x.iter())
+            .filter(|tok| self.lookup_v(tok))
+            .cloned()
+            .collect(); //cloned should do a shallow copy
+
+        // println!("ma: \n mand_vars: {:?}, ", mand_vars);
+
+        let mut cartesian: BTreeSet<(LanguageToken, LanguageToken)> = BTreeSet::new();
+
+        for x in mand_vars.iter() {
+            for y in mand_vars.iter() {
+                cartesian.insert((x.clone(), y.clone()));
+            }
+        }
+
+        let dvs: BTreeSet<(LanguageToken, LanguageToken)> = self
+            .list
+            .iter()
+            .flat_map(|fr| fr.d.intersection(&cartesian))
+            .cloned()
+            .collect();
+
+        let mut f_hyps = VecDeque::new();
+        self.list.iter().rev().for_each(|fr| {
+            fr.f.iter().rev().for_each(|(v, k)| {
+                if mand_vars.contains(v) {
+                    f_hyps.push_front((k.clone(), v.clone()));
+                    mand_vars.remove(v);
+                }
+            });
+        });
+        // println!("ma: \n dvs: {:?}, f: {:?}, e_hyps: {:?}, stat: {:?}", dvs, f_hyps, e_hyps, stat);
+
+        Assertion {
+            dvs,
+            f_hyps,
+            e_hyps,
+            stat,
+        }
+    }
+}
 
 // first one is label type,
 
