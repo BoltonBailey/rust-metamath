@@ -766,4 +766,20 @@ mod tests {
             true
         );
     }
+
+    #[test]
+    fn unbroken_file_passes_240() {
+        assert_eq!(
+            check_file("theory/matching-logic-240-loc.mm".to_string()),
+            true
+        );
+    }
+
+    #[test]
+    fn unbroken_file_passes_250() {
+        assert_eq!(
+            check_file("theory/matching-logic-250-loc.mm".to_string()),
+            true
+        );
+    }
 }
